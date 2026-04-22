@@ -1,5 +1,5 @@
- // ===========================
-// 👤 User Profile Service
+// ===========================
+// 👤 User Profile Service - Enhanced
 // ===========================
 
 function buildUserProfile(quizAnswers) {
@@ -7,9 +7,12 @@ function buildUserProfile(quizAnswers) {
         genres: quizAnswers.genres || [],
         tone: quizAnswers.tone || 'any',
         era: quizAnswers.era || 'any',
+        language: quizAnswers.language || 'any',
+        duration: quizAnswers.duration || 'any',
+        complexity: quizAnswers.complexity || 'medium',
         minRating: quizAnswers.minRating || 6,
         subscriptions: quizAnswers.subscriptions || [],
-        complexity: quizAnswers.complexity || 'medium'
+        favoriteMovie: quizAnswers.favoriteMovie || null
     };
 }
 
@@ -29,15 +32,29 @@ function getToneGenres(tone) {
     return toneMap[tone.toLowerCase()] || [];
 }
 
+function getComplexityGenres(complexity) {
+    const complexityMap = {
+        'easy': ['comedy', 'animation', 'family', 'adventure'],
+        'medium': ['action', 'thriller', 'romance', 'fantasy'],
+        'complex': ['drama', 'mystery', 'crime', 'science fiction'],
+        'masterpiece': ['drama', 'history', 'war', 'documentary'],
+    };
+
+    return complexityMap[complexity.toLowerCase()] || [];
+}
+
 function getExpandedGenres(quizAnswers) {
     const userGenres = quizAnswers.genres || [];
     const toneGenres = getToneGenres(quizAnswers.tone || 'any');
-    const allGenres = [...new Set([...userGenres, ...toneGenres])];
+    const complexityGenres = getComplexityGenres(quizAnswers.complexity || 'medium');
+
+    const allGenres = [...new Set([...userGenres, ...toneGenres, ...complexityGenres])];
     return allGenres;
 }
 
 module.exports = {
     buildUserProfile,
     getToneGenres,
+    getComplexityGenres,
     getExpandedGenres
 };

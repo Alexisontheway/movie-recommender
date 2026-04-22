@@ -1,12 +1,11 @@
 // ===========================
-// 🎬 TMDB Service - Fetches Movie Data
+// 🎬 TMDB Service - Expanded Edition
 // ===========================
 
 const axios = require('axios');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-// Create axios instance with timeout
 const tmdbApi = axios.create({
     baseURL: process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3',
     timeout: 15000,
@@ -44,7 +43,12 @@ const GENRE_MAP = {
     'western': 37
 };
 
-// 🔄 Helper function with retry
+// Helper: wait between API calls
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 🔄 Fetch with retry
 async function fetchWithRetry(url, params = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -53,74 +57,145 @@ async function fetchWithRetry(url, params = {}, retries = 3) {
         } catch (error) {
             console.log(`⚠️ Attempt ${i + 1} failed: ${error.message}`);
             if (i === retries - 1) throw error;
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+            await delay(1000 * (i + 1));
         }
     }
 }
 
-// 1️⃣ Get popular movies
-async function getPopularMovies(page = 1) {
-    const data = await fetchWithRetry('/movie/popular', { page });
-    return data.results;
-}
+// 🔄 Fetch multiple pages
+async function fetchMultiplePages(url, params = {}, pages = 3) {
+    let allResults = [];
 
-// 2️⃣ Search movies by genre
-async function getMoviesByGenre(genreName, page = 1) {
-    const genreId = GENRE_MAP[genreName.toLowerCase()];
-    if (!genreId) {
-        throw new Error(`Unknown genre: ${genreName}`);
+    for (let page = 1; page <= pages; page++) {
+        try {
+            const data = await fetchWithRetry(url, { ...params, page });
+            allResults = [...allResults, ...data.results];
+            console.log(`   📄 Page ${page}: got ${data.results.length} movies`);
+            if (page < pages) await delay(800);
+        } catch (err) {
+            console.log(`   ⚠️ Page ${page} failed, continuing...`);
+        }
     }
 
-    const data = await fetchWithRetry('/discover/movie', {
-        with_genres: genreId,
-        sort_by: 'vote_average.desc',
-        'vote_count.gte': 100,
-        page
-    });
-    return data.results;
+    return allResults;
 }
 
-// 3️⃣ Search movies by multiple genres
-async function getMoviesByMultipleGenres(genreNames, page = 1) {
+// 1️⃣ Get popular movies (multiple pages)
+async function getPopularMovies(pages = 3) {
+    console.log('🔥 Fetching popular movies...');
+    return await fetchMultiplePages('/movie/popular', {}, pages);
+}
+
+// 2️⃣ Get top rated movies (multiple pages)
+async function getTopRatedMovies(pages = 3) {
+    console.log('⭐ Fetching top rated movies...');
+    return await fetchMultiplePages('/movie/top_rated', {}, pages);
+}
+
+// 3️⃣ Get movies by genre (multiple pages)
+async function getMoviesByGenre(genreName, pages = 2) {
+    const genreId = GENRE_MAP[genreName.toLowerCase()];
+    if (!genreId) throw new Error(`Unknown genre: ${genreName}`);
+
+    console.log(`🎭 Fetching ${genreName} movies...`);
+    return await fetchMultiplePages('/discover/movie', {
+        with_genres: genreId,
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': 50,
+    }, pages);
+}
+
+// 4️⃣ Get movies by multiple genres
+async function getMoviesByMultipleGenres(genreNames, pages = 2) {
     const genreIds = genreNames
         .map(name => GENRE_MAP[name.toLowerCase()])
         .filter(id => id !== undefined);
 
-    if (genreIds.length === 0) {
-        throw new Error('No valid genres provided');
-    }
+    if (genreIds.length === 0) throw new Error('No valid genres provided');
 
-    const data = await fetchWithRetry('/discover/movie', {
+    console.log(`🎭 Fetching multi-genre movies...`);
+    return await fetchMultiplePages('/discover/movie', {
         with_genres: genreIds.join(','),
         sort_by: 'vote_average.desc',
         'vote_count.gte': 50,
-        page
-    });
+    }, pages);
+}
+
+// 5️⃣ 🌟 NEW: Get hidden gems (high rating, low popularity)
+async function getHiddenGems(pages = 3) {
+    console.log('💎 Fetching hidden gems...');
+    return await fetchMultiplePages('/discover/movie', {
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': 50,
+        'vote_count.lte': 1000,
+        'vote_average.gte': 7.0,
+    }, pages);
+}
+
+// 6️⃣ 🌟 NEW: Get underrated classics
+async function getUnderratedClassics(pages = 2) {
+    console.log('🏛️ Fetching underrated classics...');
+    return await fetchMultiplePages('/discover/movie', {
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': 100,
+        'vote_count.lte': 2000,
+        'vote_average.gte': 7.5,
+        'release_date.lte': '2010-12-31',
+    }, pages);
+}
+
+// 7️⃣ 🌟 NEW: Get international cinema
+async function getInternationalCinema(language, pages = 2) {
+    const langMap = {
+        'korean': 'ko',
+        'japanese': 'ja',
+        'french': 'fr',
+        'spanish': 'es',
+        'indian': 'hi',
+        'german': 'de',
+        'italian': 'it',
+        'chinese': 'zh',
+    };
+
+    const langCode = langMap[language.toLowerCase()] || language;
+    console.log(`🌍 Fetching ${language} cinema...`);
+
+    return await fetchMultiplePages('/discover/movie', {
+        with_original_language: langCode,
+        sort_by: 'vote_average.desc',
+        'vote_count.gte': 50,
+        'vote_average.gte': 7.0,
+    }, pages);
+}
+
+// 8️⃣ 🌟 NEW: Get trending movies this week
+async function getTrendingMovies() {
+    console.log('📈 Fetching trending movies...');
+    const data = await fetchWithRetry('/trending/movie/week');
     return data.results;
 }
 
-// 4️⃣ Get movie details
-async function getMovieDetails(movieId) {
-    const data = await fetchWithRetry(`/movie/${movieId}`, {
-        append_to_response: 'credits,keywords,watch/providers'
-    });
-    return data;
-}
-
-// 5️⃣ Search movies by keyword
+// 9️⃣ Search movies
 async function searchMovies(query) {
     const data = await fetchWithRetry('/search/movie', { query });
     return data.results;
 }
 
-// 6️⃣ Get top rated movies
-async function getTopRatedMovies(page = 1) {
-    const data = await fetchWithRetry('/movie/top_rated', { page });
+// 🔟 Get movie details
+async function getMovieDetails(movieId) {
+    const data = await fetchWithRetry(`/movie/${movieId}`, {
+        append_to_response: 'credits,keywords,watch/providers,similar'
+    });
+    return data;
+}
+
+// 1️⃣1️⃣ 🌟 NEW: Get similar movies
+async function getSimilarMovies(movieId) {
+    const data = await fetchWithRetry(`/movie/${movieId}/similar`);
     return data.results;
 }
 
-// 7️⃣ Format movie data
+// Format movie data
 function formatMovie(movie) {
     return {
         id: movie.id,
@@ -137,17 +212,25 @@ function formatMovie(movie) {
             : null,
         genreIds: movie.genre_ids || [],
         popularity: movie.popularity,
-        voteCount: movie.vote_count
+        voteCount: movie.vote_count,
+        originalLanguage: movie.original_language
     };
 }
 
 module.exports = {
     getPopularMovies,
+    getTopRatedMovies,
     getMoviesByGenre,
     getMoviesByMultipleGenres,
-    getMovieDetails,
+    getHiddenGems,
+    getUnderratedClassics,
+    getInternationalCinema,
+    getTrendingMovies,
     searchMovies,
-    getTopRatedMovies,
+    getMovieDetails,
+    getSimilarMovies,
+    fetchMultiplePages,
     formatMovie,
-    GENRE_MAP
+    GENRE_MAP,
+    delay
 };

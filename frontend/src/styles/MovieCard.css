@@ -1,35 +1,10 @@
-.movie-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-}
-
-.movie-card {
-  background: var(--bg-secondary);
-  border-radius: var(--radius);
-  padding: 16px;
+.hidden-gem-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
-  box-shadow: var(--shadow);
-}
-
-.movie-poster {
-  width: 100%;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-
-.movie-title {
-  font-size: 1.1rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
   margin-bottom: 8px;
-}
-
-.movie-meta {
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.movie-overview {
-  font-size: 14px;
-  line-height: 1.4;
-  color: #ddd;
 }
