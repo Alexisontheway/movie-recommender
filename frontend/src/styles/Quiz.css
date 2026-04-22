@@ -1,0 +1,37 @@
+.quiz-form {
+  max-width: 700px;
+}
+
+.quiz-section {
+  margin-bottom: 24px;
+}
+
+.quiz-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.quiz-select,
+.quiz-input {
+  width: 100%;
+  max-width: 300px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #1a1a1a;
+  color: white;
+}
+
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.genre-item {
+  background: var(--bg-secondary);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}

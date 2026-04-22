@@ -1,0 +1,16 @@
+:root {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1c1c1c;
+  --bg-card: #222;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --accent: #e50914;
+  --accent-hover: #b20710;
+  --border: #333;
+  --radius: 12px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
