@@ -57,7 +57,7 @@ A full-stack movie recommendation platform that combines **Machine Learning** wi
 │ Python/Sklearn │
 └──────────────────┘
 
-text
+
 
 ---
 
@@ -131,7 +131,7 @@ movie-recommender/
 ├── schema.sql
 └── seed.sql
 
-text
+
 
 ---
 
@@ -153,19 +153,28 @@ cd backend
 npm install
 Create backend/.env:
 
+
+
 env
 TMDB_API_KEY=your_tmdb_api_key
 TMDB_BASE_URL=https://api.themoviedb.org/3
 DATABASE_URL=postgresql://user:password@localhost:5432/movie_recommender
 JWT_SECRET=your-secret-key
 PORT=5000
+
+
+
 bash
 node server.js
+
+
 3. Frontend Setup
 bash
 cd frontend
 npm install
 npm start
+
+
 4. ML Service Setup
 bash
 cd ml-service
@@ -174,6 +183,8 @@ venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Mac/Linux
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+
+
 5. Database Setup
 bash
 psql -U your_user -d movie_recommender -f database/schema.sql
