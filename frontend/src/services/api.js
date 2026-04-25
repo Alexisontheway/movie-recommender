@@ -1,4 +1,4 @@
- import axios from 'axios';
+import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -17,6 +17,25 @@ export const moviesApi = {
 
 export const recommendationsApi = {
   generate: (quizAnswers) => api.post('/recommendations/generate', quizAnswers),
+};
+
+// 🧠 ML + TMDB Hybrid API
+export const mlApi = {
+  getStatus: () => api.get('/recommendations/ml/status'),
+
+  // Live search via TMDB (finds ANY movie worldwide)
+  search: (query) => api.get(`/recommendations/search?q=${encodeURIComponent(query)}`),
+
+  // Hybrid recommendations (ML + TMDB combined)
+  getHybrid: (movieId, title, count = 10) =>
+    api.get(`/recommendations/ml/hybrid/${movieId}?title=${encodeURIComponent(title)}&count=${count}`),
+
+  // Multi-movie recommendations
+  getMultiple: (movies, count = 5) =>
+    api.post('/recommendations/ml/multi', { movies, count }),
+
+  // Get all ML movies
+  getAllMovies: () => api.get('/recommendations/ml/movies'),
 };
 
 export default api;

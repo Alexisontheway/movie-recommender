@@ -19,3 +19,25 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+
+# Large ML model files
+ml-service/models/similarity.pkl
+ml-service/models/*.pkl
+*.pkl
+
+# Dependencies
+node_modules/
+ml-service/venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# Build
+frontend/build/
+
+# OS
+.DS_Store
+Thumbs.db

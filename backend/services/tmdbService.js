@@ -196,7 +196,16 @@ async function getSimilarMovies(movieId) {
 }
 
 // Format movie data
+// Format movie data
 function formatMovie(movie) {
+    // FIX: Handle both genre_ids (from list APIs) and genres (from detail APIs)
+    let genreIds = [];
+    if (movie.genre_ids && movie.genre_ids.length > 0) {
+        genreIds = movie.genre_ids;
+    } else if (movie.genres && movie.genres.length > 0) {
+        genreIds = movie.genres.map(g => g.id);
+    }
+
     return {
         id: movie.id,
         title: movie.title,
@@ -210,7 +219,7 @@ function formatMovie(movie) {
         backdrop: movie.backdrop_path
             ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`
             : null,
-        genreIds: movie.genre_ids || [],
+        genreIds: genreIds,
         popularity: movie.popularity,
         voteCount: movie.vote_count,
         originalLanguage: movie.original_language

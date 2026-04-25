@@ -8,7 +8,15 @@ export default function Results() {
   const recommendations = location.state?.recommendations || [];
   const hiddenGems = location.state?.hiddenGems || 0;
 
-  const gemMovies = recommendations.filter(m => m.isHiddenGem);
+  // Split AND re-number each section from #1
+  const gemMovies = recommendations
+    .filter(m => m.isHiddenGem)
+    .map((m, i) => ({ ...m, rank: i + 1 }));
+
+  const mainMovies = recommendations
+    .filter(m => !m.isHiddenGem)
+    .map((m, i) => ({ ...m, rank: i + 1 }));
+
   const topMatch = recommendations[0];
 
   return (
@@ -66,13 +74,15 @@ export default function Results() {
               </div>
             )}
 
-            {/* All Recommendations */}
-            <div>
-              <h2 style={{ fontSize: '1.4rem', marginBottom: '16px' }}>
-                🎯 All Recommendations
-              </h2>
-              <RecommendationList recommendations={recommendations} />
-            </div>
+            {/* Top Picks — re-numbered, no duplicates */}
+            {mainMovies.length > 0 && (
+              <div>
+                <h2 style={{ fontSize: '1.4rem', marginBottom: '16px' }}>
+                  🎯 Top Picks For You
+                </h2>
+                <RecommendationList recommendations={mainMovies} />
+              </div>
+            )}
 
             {/* Actions */}
             <div style={{ textAlign: 'center', marginTop: '48px', display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>

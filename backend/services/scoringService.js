@@ -1,5 +1,5 @@
 // ===========================
-// 🎯 Scoring Service - Enhanced Edition
+// 🎯 Scoring Service - Fixed Edition
 // ===========================
 
 const { GENRE_MAP } = require('./tmdbService');
@@ -8,32 +8,32 @@ function scoreMovie(movie, userPreferences) {
     let score = 0;
     let maxScore = 0;
 
-    // 1️⃣ Genre Match (40 points max)
+    // 1️⃣ Genre Match (50 points max) — INCREASED from 40
     const genreScore = calculateGenreScore(movie, userPreferences.genres);
     score += genreScore;
-    maxScore += 40;
+    maxScore += 50;
 
     // 2️⃣ Rating (20 points max)
     const ratingScore = calculateRatingScore(movie, userPreferences.minRating);
     score += ratingScore;
     maxScore += 20;
 
-    // 3️⃣ Era Match (15 points max) — reduced from 20
+    // 3️⃣ Era Match (15 points max)
     const eraScore = calculateEraScore(movie, userPreferences.era);
     score += eraScore;
     maxScore += 15;
 
-    // 4️⃣ 💎 Hidden Gem Bonus (15 points max) — NEW
+    // 4️⃣ 💎 Hidden Gem Bonus (5 points max) — REDUCED from 15
     const gemScore = calculateHiddenGemScore(movie);
     score += gemScore;
-    maxScore += 15;
+    maxScore += 5;
 
-    // 5️⃣ Popularity (5 points max) — reduced from 10
+    // 5️⃣ Popularity (5 points max)
     const popularityScore = calculatePopularityScore(movie);
     score += popularityScore;
     maxScore += 5;
 
-    // 6️⃣ Trust Score (5 points max) — reduced from 10
+    // 6️⃣ Trust Score (5 points max)
     const trustScore = calculateTrustScore(movie);
     score += trustScore;
     maxScore += 5;
@@ -43,7 +43,7 @@ function scoreMovie(movie, userPreferences) {
     return {
         ...movie,
         matchScore: percentage,
-        isHiddenGem: gemScore >= 12,
+        isHiddenGem: gemScore >= 4,
         scoreBreakdown: {
             genre: genreScore,
             rating: ratingScore,
@@ -55,19 +55,24 @@ function scoreMovie(movie, userPreferences) {
     };
 }
 
-// 🎭 Genre matching
+// 🎭 Genre matching — now worth MORE
 function calculateGenreScore(movie, preferredGenres) {
-    if (!preferredGenres || preferredGenres.length === 0) return 20;
+    if (!preferredGenres || preferredGenres.length === 0) return 25;
 
     const preferredIds = preferredGenres
         .map(g => GENRE_MAP[g.toLowerCase()])
         .filter(id => id !== undefined);
 
+    if (preferredIds.length === 0) return 25;
+
     const movieGenreIds = movie.genre_ids || movie.genreIds || [];
     const matches = movieGenreIds.filter(id => preferredIds.includes(id)).length;
     const matchRatio = matches / preferredIds.length;
 
-    return Math.round(matchRatio * 40);
+    // No genre match at all = very low score
+    if (matches === 0) return 5;
+
+    return Math.round(matchRatio * 50);
 }
 
 // ⭐ Rating scoring
@@ -108,7 +113,7 @@ function calculateEraScore(movie, preferredEra) {
     return 3;
 }
 
-// 💎 Hidden Gem Bonus — NEW
+// 💎 Hidden Gem Bonus — NERFED (max 5, was 15)
 function calculateHiddenGemScore(movie) {
     const rating = movie.vote_average || movie.rating || 0;
     const voteCount = movie.vote_count || movie.voteCount || 0;
@@ -116,21 +121,23 @@ function calculateHiddenGemScore(movie) {
 
     let gemScore = 0;
 
-    // High rating + low vote count = hidden gem
-    if (rating >= 7.5 && voteCount <= 1000) gemScore += 6;
-    if (rating >= 7.0 && voteCount <= 500) gemScore += 4;
+    // Must have minimum votes to even qualify as a gem (prevents concert films)
+    if (voteCount < 200) return 0;
 
-    // High rating + low popularity = underrated
-    if (rating >= 7.0 && popularity < 20) gemScore += 3;
+    // High rating + moderate votes = real hidden gem
+    if (rating >= 7.5 && voteCount >= 200 && voteCount <= 2000) gemScore += 3;
+
+    // Underrated internationally
+    if (rating >= 7.0 && popularity < 20 && voteCount >= 200) gemScore += 1;
 
     // International film bonus
     const language = movie.original_language || '';
-    if (language !== 'en' && rating >= 7.0) gemScore += 2;
+    if (language !== 'en' && rating >= 7.0 && voteCount >= 200) gemScore += 1;
 
-    return Math.min(gemScore, 15);
+    return Math.min(gemScore, 5);
 }
 
-// 🔥 Popularity — now lower weight
+// 🔥 Popularity
 function calculatePopularityScore(movie) {
     const popularity = movie.popularity || 0;
 

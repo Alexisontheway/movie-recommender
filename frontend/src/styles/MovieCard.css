@@ -1,10 +1,218 @@
+/* ===========================
+   Base Badges
+   =========================== */
+
 .hidden-gem-badge {
-  display: inline-block;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 8px;
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* ===========================
+   🧠 ML-Powered Styles
+   =========================== */
+
+.movie-card.ml-powered {
+    border: 1px solid rgba(123, 47, 255, 0.2);
+}
+
+.movie-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ml-badge {
+    background: linear-gradient(135deg, rgba(123, 47, 255, 0.2), rgba(0, 212, 255, 0.2));
+    border: 1px solid rgba(123, 47, 255, 0.4);
+    color: #00d4ff;
+}
+
+.similarity-container {
+    margin: 0.5rem 0;
+}
+
+.similarity-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.similarity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7b2fff, #00d4ff);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.similarity-text {
+    font-size: 0.8rem;
+    color: #00d4ff;
+    font-weight: 600;
+}
+
+/* ===========================
+   🔀 Hybrid Source Badges
+   =========================== */
+
+.movie-card.top-pick {
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.top-pick-badge {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #ffd700;
+}
+
+.tmdb-badge {
+    background: linear-gradient(135deg, rgba(1, 180, 228, 0.2), rgba(144, 206, 161, 0.2));
+    border: 1px solid rgba(1, 180, 228, 0.4);
+    color: #01b4e4;
+}
+
+.similarity-fill.tmdb-fill {
+    background: linear-gradient(90deg, #01b4e4, #90cea1);
+}
+
+.tmdb-score-text {
+    color: #01b4e4;
+}
+
+/* ===========================
+   🔖 Poster Actions (NEW)
+   =========================== */
+
+.poster-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.poster-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.poster-container:hover .poster-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.action-btn:hover {
+    transform: scale(1.15);
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.action-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.watchlist-btn.active {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.favorite-btn.active {
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.rate-btn.active {
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+    font-size: 0.7rem;
+}
+
+/* ===========================
+   ⭐ Star Rating Popup
+   =========================== */
+
+.star-rating-popup {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--bg-primary, #1a1a2e);
+    border: 1px solid var(--border, #333);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.star {
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.15s ease;
+    user-select: none;
+}
+
+.star:hover {
+    transform: scale(1.2);
+}
+
+.star-filled {
+    color: #f59e0b;
+}
+
+.star-empty {
+    color: #555;
+}
+
+/* ===========================
+   💬 Action Feedback Toast
+   =========================== */
+
+.action-feedback {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-align: center;
+    animation: feedbackSlide 0.3s ease;
+}
+
+@keyframes feedbackSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
