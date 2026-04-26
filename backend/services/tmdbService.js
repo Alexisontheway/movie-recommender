@@ -8,7 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const tmdbApi = axios.create({
     baseURL: process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3',
-    timeout: 15000,
+    timeout: 20000,
     params: {
         api_key: process.env.TMDB_API_KEY,
         language: 'en-US'
@@ -71,7 +71,7 @@ async function fetchMultiplePages(url, params = {}, pages = 3) {
             const data = await fetchWithRetry(url, { ...params, page });
             allResults = [...allResults, ...data.results];
             console.log(`   📄 Page ${page}: got ${data.results.length} movies`);
-            if (page < pages) await delay(800);
+            if (page < pages) await delay(400);
         } catch (err) {
             console.log(`   ⚠️ Page ${page} failed, continuing...`);
         }

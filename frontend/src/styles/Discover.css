@@ -347,3 +347,64 @@
   color: #f0ad4e;
   font-style: italic;
 }
+
+/* ===========================
+   📱 Discover Mobile
+   =========================== */
+
+@media (max-width: 768px) {
+    .discover-main {
+        padding: 1rem;
+    }
+
+    .discover-title {
+        font-size: 1.6rem;
+    }
+
+    .discover-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .mode-toggle {
+        gap: 0.5rem;
+    }
+
+    .mode-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .search-container {
+        margin: 0 auto 1.5rem;
+    }
+
+    .search-input {
+        font-size: 0.95rem;
+    }
+
+    .results-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .selected-tags {
+        gap: 0.4rem;
+    }
+
+    .movie-tag {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .recommend-btn {
+        width: 100%;
+        padding: 0.7rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .stats-bar {
+        gap: 0.8rem;
+        padding: 0.8rem 1rem;
+        font-size: 0.8rem;
+    }
+}

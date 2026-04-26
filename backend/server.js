@@ -14,7 +14,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://movie-recommender-alexisontheway.vercel.app',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Allow all in development
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 
 // Import routes
@@ -39,7 +54,7 @@ app.use('/api/ratings', ratingsRoutes);
 app.get('/', (req, res) => {
     res.json({
         message: '🎬 Movie Recommender API is running!',
-        version: '2.1.0',
+        version: '3.0.0',
         endpoints: {
             health: '/api/health',
             movies: '/api/movies',
