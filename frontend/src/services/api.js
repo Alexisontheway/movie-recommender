@@ -1,10 +1,19 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Automatically attach token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('movie_recommender_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const healthApi = () => api.get('/health');
@@ -19,22 +28,13 @@ export const recommendationsApi = {
   generate: (quizAnswers) => api.post('/recommendations/generate', quizAnswers),
 };
 
-// 🧠 ML + TMDB Hybrid API
 export const mlApi = {
   getStatus: () => api.get('/recommendations/ml/status'),
-
-  // Live search via TMDB (finds ANY movie worldwide)
   search: (query) => api.get(`/recommendations/search?q=${encodeURIComponent(query)}`),
-
-  // Hybrid recommendations (ML + TMDB combined)
   getHybrid: (movieId, title, count = 10) =>
     api.get(`/recommendations/ml/hybrid/${movieId}?title=${encodeURIComponent(title)}&count=${count}`),
-
-  // Multi-movie recommendations
   getMultiple: (movies, count = 5) =>
     api.post('/recommendations/ml/multi', { movies, count }),
-
-  // Get all ML movies
   getAllMovies: () => api.get('/recommendations/ml/movies'),
 };
 

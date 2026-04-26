@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import api from '../services/api';
 
 const MovieContext = createContext();
 
@@ -16,17 +15,8 @@ export function MovieProvider({ children }) {
     const [ratings, setRatings] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Read token directly from localStorage (correct key!)
-    const getToken = () => localStorage.getItem('movie_recommender_token');
-
-    const authHeaders = useCallback(() => ({
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getToken()}`
-    }), []);
-
-    // Fetch all user data on login
     const fetchUserData = useCallback(async () => {
-        const token = getToken();
+        const token = localStorage.getItem('movie_recommender_token');
         if (!token) {
             setWatchlist([]);
             setFavorites([]);
@@ -35,168 +25,133 @@ export function MovieProvider({ children }) {
         }
         setLoading(true);
         try {
-            const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
             const [wRes, fRes, rRes] = await Promise.all([
-                fetch(`${API_URL}/watchlist`, { headers }),
-                fetch(`${API_URL}/favorites`, { headers }),
-                fetch(`${API_URL}/ratings`, { headers })
+                api.get('/watchlist'),
+                api.get('/favorites'),
+                api.get('/ratings')
             ]);
-            const wData = await wRes.json();
-            const fData = await fRes.json();
-            const rData = await rRes.json();
 
-            if (wData.success) setWatchlist(wData.watchlist);
-            if (fData.success) setFavorites(fData.favorites);
-            if (rData.success) setRatings(rData.ratings);
+            if (wRes.data.success) setWatchlist(wRes.data.watchlist);
+            if (fRes.data.success) setFavorites(fRes.data.favorites);
+            if (rRes.data.success) setRatings(rRes.data.ratings);
         } catch (err) {
             console.error('Failed to fetch user data:', err);
         }
         setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoggedIn]);
 
     useEffect(() => {
         fetchUserData();
     }, [fetchUserData]);
 
-    // Watchlist helpers
     const isInWatchlist = (movieId) => watchlist.some(m => m.movie_id === movieId);
 
     const toggleWatchlist = async (movie) => {
-        const token = getToken();
+        const token = localStorage.getItem('movie_recommender_token');
         if (!token) return { success: false, message: 'Please login first' };
 
         if (isInWatchlist(movie.id)) {
             try {
-                const res = await fetch(`${API_URL}/watchlist/remove/${movie.id}`, {
-                    method: 'DELETE',
-                    headers: authHeaders()
-                });
-                const data = await res.json();
-                if (data.success) {
+                const res = await api.delete(`/watchlist/remove/${movie.id}`);
+                if (res.data.success) {
                     setWatchlist(prev => prev.filter(m => m.movie_id !== movie.id));
                 }
-                return data;
+                return res.data;
             } catch (err) {
                 return { success: false, message: 'Network error' };
             }
         } else {
             try {
-                const res = await fetch(`${API_URL}/watchlist/add`, {
-                    method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({
-                        movie_id: movie.id,
-                        movie_title: movie.title,
-                        movie_poster: movie.poster,
-                        movie_rating: movie.rating,
-                        movie_year: movie.year
-                    })
+                const res = await api.post('/watchlist/add', {
+                    movie_id: movie.id,
+                    movie_title: movie.title,
+                    movie_poster: movie.poster,
+                    movie_rating: movie.rating,
+                    movie_year: movie.year
                 });
-                const data = await res.json();
-                if (data.success) {
-                    setWatchlist(prev => [data.item, ...prev]);
+                if (res.data.success) {
+                    setWatchlist(prev => [res.data.item, ...prev]);
                 }
-                return data;
+                return res.data;
             } catch (err) {
                 return { success: false, message: 'Network error' };
             }
         }
     };
 
-    // Favorites helpers
     const isInFavorites = (movieId) => favorites.some(m => m.movie_id === movieId);
 
     const toggleFavorite = async (movie) => {
-        const token = getToken();
+        const token = localStorage.getItem('movie_recommender_token');
         if (!token) return { success: false, message: 'Please login first' };
 
         if (isInFavorites(movie.id)) {
             try {
-                const res = await fetch(`${API_URL}/favorites/remove/${movie.id}`, {
-                    method: 'DELETE',
-                    headers: authHeaders()
-                });
-                const data = await res.json();
-                if (data.success) {
+                const res = await api.delete(`/favorites/remove/${movie.id}`);
+                if (res.data.success) {
                     setFavorites(prev => prev.filter(m => m.movie_id !== movie.id));
                 }
-                return data;
+                return res.data;
             } catch (err) {
                 return { success: false, message: 'Network error' };
             }
         } else {
             try {
-                const res = await fetch(`${API_URL}/favorites/add`, {
-                    method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({
-                        movie_id: movie.id,
-                        movie_title: movie.title,
-                        movie_poster: movie.poster,
-                        movie_rating: movie.rating,
-                        movie_year: movie.year
-                    })
+                const res = await api.post('/favorites/add', {
+                    movie_id: movie.id,
+                    movie_title: movie.title,
+                    movie_poster: movie.poster,
+                    movie_rating: movie.rating,
+                    movie_year: movie.year
                 });
-                const data = await res.json();
-                if (data.success) {
-                    setFavorites(prev => [data.item, ...prev]);
+                if (res.data.success) {
+                    setFavorites(prev => [res.data.item, ...prev]);
                 }
-                return data;
+                return res.data;
             } catch (err) {
                 return { success: false, message: 'Network error' };
             }
         }
     };
 
-    // Ratings helpers
     const getUserRating = (movieId) => {
         const r = ratings.find(r => r.movie_id === movieId);
         return r ? r.rating : 0;
     };
 
     const rateMovie = async (movieId, rating) => {
-        const token = getToken();
+        const token = localStorage.getItem('movie_recommender_token');
         if (!token) return { success: false, message: 'Please login first' };
 
         try {
-            const res = await fetch(`${API_URL}/ratings/rate`, {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({ movie_id: movieId, rating })
-            });
-            const data = await res.json();
-            if (data.success) {
+            const res = await api.post('/ratings/rate', { movie_id: movieId, rating });
+            if (res.data.success) {
                 setRatings(prev => {
                     const existing = prev.findIndex(r => r.movie_id === movieId);
                     if (existing >= 0) {
                         const updated = [...prev];
-                        updated[existing] = data.item;
+                        updated[existing] = res.data.item;
                         return updated;
                     }
-                    return [data.item, ...prev];
+                    return [res.data.item, ...prev];
                 });
             }
-            return data;
+            return res.data;
         } catch (err) {
             return { success: false, message: 'Network error' };
         }
     };
 
     const removeRating = async (movieId) => {
-        const token = getToken();
+        const token = localStorage.getItem('movie_recommender_token');
         if (!token) return { success: false, message: 'Please login first' };
 
         try {
-            const res = await fetch(`${API_URL}/ratings/remove/${movieId}`, {
-                method: 'DELETE',
-                headers: authHeaders()
-            });
-            const data = await res.json();
-            if (data.success) {
+            const res = await api.delete(`/ratings/remove/${movieId}`);
+            if (res.data.success) {
                 setRatings(prev => prev.filter(r => r.movie_id !== movieId));
             }
-            return data;
+            return res.data;
         } catch (err) {
             return { success: false, message: 'Network error' };
         }
