@@ -184,7 +184,7 @@ async function searchMovies(query) {
 // 🔟 Get movie details
 async function getMovieDetails(movieId) {
     const data = await fetchWithRetry(`/movie/${movieId}`, {
-        append_to_response: 'credits,keywords,watch/providers,similar'
+        append_to_response: 'credits,keywords,watch/providers,similar,videos'
     });
     return data;
 }

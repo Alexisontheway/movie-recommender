@@ -1,16 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import '../styles/MovieCard.css';
 
 export default function MovieCard({ movie }) {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const movies = useMovies();
     const [showRating, setShowRating] = useState(false);
     const [hoverStar, setHoverStar] = useState(0);
     const [actionFeedback, setActionFeedback] = useState('');
 
-    // Safe checks — movies context might not be available
     const inWatchlist = movies ? movies.isInWatchlist(movie.id) : false;
     const inFavorites = movies ? movies.isInFavorites(movie.id) : false;
     const userRating = movies ? movies.getUserRating(movie.id) : 0;
@@ -20,7 +21,8 @@ export default function MovieCard({ movie }) {
         setTimeout(() => setActionFeedback(''), 2000);
     };
 
-    const handleWatchlist = async () => {
+    const handleWatchlist = async (e) => {
+        e.stopPropagation();
         if (!user) return showFeedback('Login to save!');
         const result = await movies.toggleWatchlist(movie);
         if (result.success) {
@@ -28,7 +30,8 @@ export default function MovieCard({ movie }) {
         }
     };
 
-    const handleFavorite = async () => {
+    const handleFavorite = async (e) => {
+        e.stopPropagation();
         if (!user) return showFeedback('Login to favorite!');
         const result = await movies.toggleFavorite(movie);
         if (result.success) {
@@ -36,9 +39,14 @@ export default function MovieCard({ movie }) {
         }
     };
 
-    const handleRate = async (starValue) => {
+    const handleRateClick = (e) => {
+        e.stopPropagation();
+        setShowRating(!showRating);
+    };
+
+    const handleRate = async (e, starValue) => {
+        e.stopPropagation();
         if (!user) return showFeedback('Login to rate!');
-        // If clicking same rating, remove it
         if (userRating === starValue) {
             await movies.removeRating(movie.id);
             showFeedback('Rating removed');
@@ -49,8 +57,16 @@ export default function MovieCard({ movie }) {
         setShowRating(false);
     };
 
+    const handleCardClick = () => {
+        navigate(`/movie/${movie.id}`);
+    };
+
     return (
-        <div className={`movie-card ${movie.isMLPowered ? 'ml-powered' : ''} ${movie.isTopPick ? 'top-pick' : ''}`}>
+        <div
+            className={`movie-card ${movie.isMLPowered ? 'ml-powered' : ''} ${movie.isTopPick ? 'top-pick' : ''}`}
+            onClick={handleCardClick}
+            style={{ cursor: 'pointer' }}
+        >
             {movie.poster && (
                 <div className="poster-container">
                     <img
@@ -58,7 +74,6 @@ export default function MovieCard({ movie }) {
                         alt={movie.title}
                         className="movie-poster"
                     />
-                    {/* Action buttons overlay on poster */}
                     {user && (
                         <div className="poster-actions">
                             <button
@@ -77,7 +92,7 @@ export default function MovieCard({ movie }) {
                             </button>
                             <button
                                 className={`action-btn rate-btn ${userRating > 0 ? 'active' : ''}`}
-                                onClick={() => setShowRating(!showRating)}
+                                onClick={handleRateClick}
                                 title="Rate this movie"
                             >
                                 {userRating > 0 ? `${userRating}⭐` : '⭐'}
@@ -88,19 +103,17 @@ export default function MovieCard({ movie }) {
             )}
 
             <div className="movie-info">
-                {/* Feedback toast */}
                 {actionFeedback && (
                     <div className="action-feedback">{actionFeedback}</div>
                 )}
 
-                {/* Star rating popup */}
                 {showRating && (
-                    <div className="star-rating-popup">
+                    <div className="star-rating-popup" onClick={e => e.stopPropagation()}>
                         {[1, 2, 3, 4, 5].map(star => (
                             <span
                                 key={star}
                                 className={`star ${star <= (hoverStar || userRating) ? 'star-filled' : 'star-empty'}`}
-                                onClick={() => handleRate(star)}
+                                onClick={(e) => handleRate(e, star)}
                                 onMouseEnter={() => setHoverStar(star)}
                                 onMouseLeave={() => setHoverStar(0)}
                             >
@@ -110,7 +123,6 @@ export default function MovieCard({ movie }) {
                     </div>
                 )}
 
-                {/* Badges */}
                 <div className="movie-badges">
                     {movie.isHiddenGem && (
                         <span className="badge hidden-gem-badge">💎 Hidden Gem</span>
@@ -130,7 +142,6 @@ export default function MovieCard({ movie }) {
                     #{movie.rank} {movie.title}
                 </h3>
 
-                {/* Similarity score bar for ML results */}
                 {movie.similarity_score ? (
                     <div className="similarity-container">
                         <div className="similarity-bar">

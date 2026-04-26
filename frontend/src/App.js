@@ -10,6 +10,7 @@ import Discover from './pages/Discover';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Profile from './pages/Profile';
+import MovieDetail from './pages/MovieDetail';
 
 function App() {
     return (
@@ -25,6 +26,7 @@ function App() {
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/profile" element={<Profile />} />
+                        <Route path="/movie/:id" element={<MovieDetail />} />
                     </Routes>
                 </BrowserRouter>
             </MovieProvider>
