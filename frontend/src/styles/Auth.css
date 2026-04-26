@@ -127,3 +127,21 @@
 .auth-switch a:hover {
     color: #00d4ff;
 }
+/* ===========================
+   📱 Auth Mobile
+   =========================== */
+
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 16px;
+    }
+
+    .auth-card {
+        padding: 24px 20px;
+        margin: 20px auto;
+    }
+
+    .auth-title {
+        font-size: 1.5rem;
+    }
+}

@@ -216,3 +216,39 @@
         transform: translateY(0);
     }
 }
+
+/* ===========================
+   📱 MovieCard Mobile
+   =========================== */
+
+@media (max-width: 768px) {
+    .movie-card {
+        font-size: 0.9rem;
+    }
+
+    .movie-title {
+        font-size: 0.95rem;
+    }
+
+    .movie-overview {
+        font-size: 0.8rem;
+    }
+
+    .poster-actions {
+        opacity: 1;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.85rem;
+    }
+
+    .star-rating-popup {
+        padding: 6px 8px;
+    }
+
+    .star {
+        font-size: 1.2rem;
+    }
+}

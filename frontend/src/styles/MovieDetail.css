@@ -515,75 +515,189 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Responsive */
+/* ===========================
+   📱 Movie Detail Mobile
+   =========================== */
+
 @media (max-width: 768px) {
-    .detail-top {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .detail-poster-section {
-        width: 220px;
-    }
-
-    .detail-poster {
-        width: 220px;
+    .detail-backdrop {
+        height: 300px;
     }
 
     .detail-content {
-        padding: 20px;
+        padding: 16px;
     }
 
-    .detail-title {
-        font-size: 1.8rem;
-        text-align: center;
+    .detail-top {
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
     }
 
-    .detail-meta {
-        justify-content: center;
+    .detail-poster-section {
+        width: 200px;
     }
 
-    .detail-genres {
-        justify-content: center;
+    .detail-poster {
+        width: 200px;
+    }
+
+    .detail-poster-placeholder {
+        width: 200px;
+        height: 300px;
     }
 
     .detail-actions {
         flex-direction: row;
     }
 
+    .detail-action-btn {
+        font-size: 0.8rem;
+        padding: 10px 14px;
+    }
+
+    .detail-info {
+        padding-top: 0;
+    }
+
+    .detail-title {
+        font-size: 1.6rem;
+        text-align: center;
+    }
+
+    .detail-tagline {
+        text-align: center;
+        font-size: 0.95rem;
+    }
+
+    .detail-meta {
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+
+    .detail-genres {
+        justify-content: center;
+    }
+
+    .genre-tag {
+        font-size: 0.8rem;
+        padding: 4px 12px;
+    }
+
+    .detail-user-rating {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .detail-star {
+        font-size: 1.4rem;
+    }
+
+    .detail-overview p {
+        font-size: 0.95rem;
+    }
+
+    .detail-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .trailer-btn {
+        width: 100%;
+        padding: 12px 24px;
+        font-size: 1rem;
+    }
+
+    .trailer-container {
+        width: 95%;
+    }
+
     .cast-grid {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 10px;
+    }
+
+    .cast-photo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .cast-photo-placeholder {
+        width: 60px;
+        height: 60px;
+    }
+
+    .cast-name {
+        font-size: 0.75rem;
+    }
+
+    .cast-character {
+        font-size: 0.65rem;
+    }
+
+    .providers-row {
+        gap: 8px;
+    }
+
+    .provider-badge {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    .provider-logo {
+        width: 24px;
+        height: 24px;
+    }
+
+    .similar-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+    }
+
+    .similar-poster {
+        height: 180px;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
     }
 }
-/* Provider links */
-a.provider-badge {
-    text-decoration: none;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
 
-a.provider-badge:hover {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
+@media (max-width: 480px) {
+    .detail-backdrop {
+        height: 200px;
+    }
 
-.provider-badge.buy {
-    border-color: rgba(34, 197, 94, 0.3);
-}
+    .detail-poster-section {
+        width: 160px;
+    }
 
-.provider-attribution {
-    margin-top: 12px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
+    .detail-poster {
+        width: 160px;
+    }
 
-.provider-attribution a {
-    color: #667eea;
-    text-decoration: none;
-}
+    .detail-title {
+        font-size: 1.3rem;
+    }
 
-.provider-attribution a:hover {
-    text-decoration: underline;
+    .detail-meta span {
+        font-size: 0.75rem;
+        padding: 3px 8px;
+    }
+
+    .detail-actions {
+        flex-direction: column;
+    }
+
+    .cast-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    }
+
+    .similar-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+
+    .similar-poster {
+        height: 150px;
+    }
 }
