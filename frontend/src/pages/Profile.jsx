@@ -1,18 +1,95 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 export default function Profile() {
     const { user } = useAuth();
     const { watchlist, favorites, ratings, loading, refreshData } = useMovies();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('watchlist');
+    const [recLoading, setRecLoading] = useState(false);
 
     useEffect(() => {
         refreshData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const handleRecommendFromFavorites = async () => {
+        if (favorites.length === 0) return;
+
+        setRecLoading(true);
+        try {
+            const moviesToSend = favorites.slice(0, 5).map(f => ({
+                id: f.movie_id,
+                title: f.movie_title
+            }));
+
+            const token = localStorage.getItem('movie_recommender_token');
+            const res = await fetch(`${API_URL}/recommendations/ml/multi`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ movies: moviesToSend, count: 5 })
+            });
+
+            const data = await res.json();
+            if (data.success && data.recommendations) {
+                navigate('/discover', {
+                    state: {
+                        fromFavorites: true,
+                        recommendations: data.recommendations,
+                        sourceMovies: moviesToSend.map(m => m.title)
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Failed to get recommendations:', err);
+        }
+        setRecLoading(false);
+    };
+
+    const handleRecommendFromWatchlist = async () => {
+        if (watchlist.length === 0) return;
+
+        setRecLoading(true);
+        try {
+            const moviesToSend = watchlist.slice(0, 5).map(w => ({
+                id: w.movie_id,
+                title: w.movie_title
+            }));
+
+            const token = localStorage.getItem('movie_recommender_token');
+            const res = await fetch(`${API_URL}/recommendations/ml/multi`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ movies: moviesToSend, count: 5 })
+            });
+
+            const data = await res.json();
+            if (data.success && data.recommendations) {
+                navigate('/discover', {
+                    state: {
+                        fromFavorites: true,
+                        recommendations: data.recommendations,
+                        sourceMovies: moviesToSend.map(m => m.title)
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Failed to get recommendations:', err);
+        }
+        setRecLoading(false);
+    };
 
     if (!user) {
         return (
@@ -73,7 +150,7 @@ export default function Profile() {
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
                         {user.email}
                     </p>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', flexWrap: 'wrap', marginBottom: '20px' }}>
                         <div>
                             <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>{watchlist.length}</div>
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Watchlist</div>
@@ -86,6 +163,42 @@ export default function Profile() {
                             <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>{ratings.length}</div>
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Rated</div>
                         </div>
+                    </div>
+
+                    {/* Recommend Buttons */}
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        {favorites.length >= 2 && (
+                            <button
+                                className="primary-button"
+                                onClick={handleRecommendFromFavorites}
+                                disabled={recLoading}
+                                style={{
+                                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                    opacity: recLoading ? 0.6 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                {recLoading ? '⏳ Analyzing...' : '🧠 Recommend from Favorites'}
+                            </button>
+                        )}
+                        {watchlist.length >= 2 && (
+                            <button
+                                className="primary-button"
+                                onClick={handleRecommendFromWatchlist}
+                                disabled={recLoading}
+                                style={{
+                                    background: 'linear-gradient(135deg, #01b4e4, #90cea1)',
+                                    opacity: recLoading ? 0.6 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                {recLoading ? '⏳ Analyzing...' : '🔖 Recommend from Watchlist'}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -151,13 +264,20 @@ export default function Profile() {
                         gap: '20px'
                     }}>
                         {activeList.map(item => (
-                            <div key={item.id} style={{
-                                background: 'var(--bg-secondary)',
-                                borderRadius: 'var(--radius)',
-                                border: '1px solid var(--border)',
-                                overflow: 'hidden',
-                                transition: 'transform 0.2s ease'
-                            }}>
+                            <div
+                                key={item.id}
+                                onClick={() => navigate(`/movie/${item.movie_id}`)}
+                                style={{
+                                    background: 'var(--bg-secondary)',
+                                    borderRadius: 'var(--radius)',
+                                    border: '1px solid var(--border)',
+                                    overflow: 'hidden',
+                                    transition: 'transform 0.2s ease',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+                                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
                                 {(item.movie_poster) && (
                                     <img
                                         src={item.movie_poster}
