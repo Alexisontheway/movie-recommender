@@ -1,20 +1,19 @@
- const { Pool } = require('pg');
+const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-    user: 'postgres',
-    password: 'rishu001',
-    host: 'localhost',
-    port: 5433,
-    database: 'movie_recommender'
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')
+        ? { rejectUnauthorized: false }
+        : false
 });
 
-// Test connection on startup
-pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-        console.log('❌ Database connection failed:', err.message);
-    } else {
-        console.log('✅ Database connected at:', res.rows[0].now);
-    }
+pool.on('connect', () => {
+    console.log('✅ Database connected at:', new Date().toISOString());
+});
+
+pool.on('error', (err) => {
+    console.error('❌ Database error:', err.message);
 });
 
 module.exports = pool;
