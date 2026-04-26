@@ -5,6 +5,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pickle
 import os
 
+# Get the base directory (ml-service/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class ContentBasedRecommender:
     def __init__(self):
@@ -13,7 +16,9 @@ class ContentBasedRecommender:
         self.tfidf_matrix = None
         self.indices = None
 
-    def load_data(self, csv_path="data/movies_processed.csv"):
+    def load_data(self, csv_path=None):
+        if csv_path is None:
+            csv_path = os.path.join(BASE_DIR, "data", "movies_processed.csv")
         self.df = pd.read_csv(csv_path)
         self.df = self.df.fillna("")
         print(f"Loaded {len(self.df)} movies")
@@ -45,18 +50,22 @@ class ContentBasedRecommender:
         self._save_model()
 
     def _save_model(self):
+        model_dir = os.path.join(BASE_DIR, "models")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = os.path.join(model_dir, "similarity.pkl")
         model_data = {
             "similarity_matrix": self.similarity_matrix,
             "indices": self.indices,
             "df": self.df
         }
-        with open("models/similarity.pkl", "wb") as f:
+        with open(model_path, "wb") as f:
             pickle.dump(model_data, f)
-        print("Model saved to models/similarity.pkl")
+        print(f"Model saved to {model_path}")
 
     def load_model(self):
-        if os.path.exists("models/similarity.pkl"):
-            with open("models/similarity.pkl", "rb") as f:
+        model_path = os.path.join(BASE_DIR, "models", "similarity.pkl")
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as f:
                 model_data = pickle.load(f)
             self.similarity_matrix = model_data["similarity_matrix"]
             self.indices = model_data["indices"]
