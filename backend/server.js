@@ -21,8 +21,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
+// Handle preflight requests — fixed for Node 24 / Express 5
+app.options('/{*splat}', cors());
 
 app.use(express.json());
 
