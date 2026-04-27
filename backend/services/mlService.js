@@ -9,18 +9,34 @@ class MLService {
 
     async isAvailable() {
         try {
-            const response = await fetch(`${ML_SERVICE_URL}/`);
+            // Give the ML service up to 60 seconds to wake up (Render free tier sleeps)
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 60000);
+
+            const response = await fetch(`${ML_SERVICE_URL}/`, {
+                signal: controller.signal
+            });
+
+            clearTimeout(timeout);
             return response.ok;
         } catch (error) {
+            console.error('ML Service health check failed:', error.message);
             return false;
         }
     }
 
     async getRecommendations(movieTitle, count = 10) {
         try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 60000);
+
             const encodedTitle = encodeURIComponent(movieTitle);
             const url = `${ML_SERVICE_URL}/recommend/${encodedTitle}?n=${count}`;
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                signal: controller.signal
+            });
+
+            clearTimeout(timeout);
 
             if (!response.ok) return null;
 
