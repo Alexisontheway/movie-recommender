@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { moviesApi } from '../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// process.env removed
 
 export default function Home() {
     const navigate = useNavigate();
@@ -16,8 +17,8 @@ export default function Home() {
 
     const fetchTrending = async () => {
         try {
-            const res = await fetch(`${API_URL}/movies`);
-            const data = await res.json();
+            const res = await moviesApi.getPopular();
+            const data = res.data;
             if (data.movies) {
                 setTrending(data.movies.slice(0, 12));
             }
@@ -245,7 +246,7 @@ export default function Home() {
                 }}>
                     {[
                         { value: '800K+', label: 'Movies in TMDB' },
-                        { value: '4,800', label: 'ML Brain Movies' },
+                        { value: '800K+', label: 'Movies in ML Brain' },
                         { value: '20+', label: 'Genres Supported' },
                         { value: '∞', label: 'Recommendations' }
                     ].map((stat, i) => (
