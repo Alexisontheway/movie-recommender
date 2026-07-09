@@ -5,7 +5,7 @@ import { useMovies } from '../context/MovieContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { mlApi } from '../services/api';
 
 export default function Profile() {
     const { user } = useAuth();
@@ -29,17 +29,8 @@ export default function Profile() {
                 title: f.movie_title
             }));
 
-            const token = localStorage.getItem('movie_recommender_token');
-            const res = await fetch(`${API_URL}/recommendations/ml/multi`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ movies: moviesToSend, count: 5 })
-            });
-
-            const data = await res.json();
+            const res = await mlApi.getMultiple(moviesToSend, 5);
+            const data = res.data;
             if (data.success && data.recommendations) {
                 navigate('/discover', {
                     state: {
@@ -65,17 +56,8 @@ export default function Profile() {
                 title: w.movie_title
             }));
 
-            const token = localStorage.getItem('movie_recommender_token');
-            const res = await fetch(`${API_URL}/recommendations/ml/multi`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ movies: moviesToSend, count: 5 })
-            });
-
-            const data = await res.json();
+            const res = await mlApi.getMultiple(moviesToSend, 5);
+            const data = res.data;
             if (data.success && data.recommendations) {
                 navigate('/discover', {
                     state: {

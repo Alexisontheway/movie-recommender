@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { mlApi } from '../services/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -12,6 +13,7 @@ export default function Discover() {
   const [sourceMovie, setSourceMovie] = useState('');
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const location = useLocation();
   const [mlStatus, setMlStatus] = useState(null);
   const [mlInfo, setMlInfo] = useState(null);
   const [error, setError] = useState('');
@@ -33,6 +35,17 @@ export default function Discover() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (location.state && location.state.recommendations) {
+      setRecommendations(location.state.recommendations);
+      if (location.state.sourceMovies) {
+        setSourceMovie(location.state.sourceMovies.join(', '));
+      }
+      // Clear state to avoid fetching repeatedly on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const handleClick = (e) => {

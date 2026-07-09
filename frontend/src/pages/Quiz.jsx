@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useRecommendations from '../hooks/useRecommendations';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { moviesApi } from '../services/api';
 import '../styles/Quiz.css';
 
 const TOTAL_STEPS = 8;
@@ -112,10 +113,8 @@ export default function Quiz() {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
-          `http://localhost:5000/api/movies/search?q=${encodeURIComponent(searchQuery)}`
-        );
-        const data = await res.json();
+        const res = await moviesApi.search(searchQuery);
+        const data = res.data;
         setSearchResults(data.movies ? data.movies.slice(0, 6) : []);
       } catch (err) {
         console.error('Search error:', err);

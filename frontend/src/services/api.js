@@ -22,6 +22,7 @@ export const moviesApi = {
   getPopular: () => api.get('/movies'),
   search: (query) => api.get(`/movies/search?q=${encodeURIComponent(query)}`),
   getByGenre: (genre) => api.get(`/movies/genre/${encodeURIComponent(genre)}`),
+  getById: (id) => api.get(`/movies/${id}`),
 };
 
 export const recommendationsApi = {

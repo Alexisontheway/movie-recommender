@@ -6,7 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/MovieDetail.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { moviesApi } from '../services/api';
 
 export default function MovieDetail() {
     const { id } = useParams();
@@ -31,8 +31,8 @@ export default function MovieDetail() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/movies/${id}`);
-            const data = await res.json();
+            const res = await moviesApi.getById(id);
+            const data = res.data;
             if (data.success) {
                 setMovie(data.movie);
             } else {

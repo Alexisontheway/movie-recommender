@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { mlApi } from '../services/api';
 
 export default function Header() {
     const { user, isLoggedIn, logout } = useAuth();
@@ -38,8 +38,8 @@ export default function Header() {
         timerRef.current = setTimeout(async () => {
             setSearching(true);
             try {
-                const res = await fetch(`${API_URL}/recommendations/search?q=${encodeURIComponent(searchQuery)}`);
-                const data = await res.json();
+                const res = await mlApi.search(searchQuery);
+                const data = res.data;
                 if (data.success && data.results) {
                     setSearchResults(data.results.slice(0, 6));
                     setShowDropdown(true);
@@ -87,8 +87,10 @@ export default function Header() {
                         onKeyDown={handleKeyDown}
                         onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                         className="header-search-input"
-                        spellCheck={false}
+                        spellCheck="false"
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
                     />
                     {searching && <span className="search-spinner"></span>}
                     {searchQuery && (
