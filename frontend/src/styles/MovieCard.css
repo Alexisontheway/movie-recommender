@@ -1,102 +1,177 @@
 /* ===========================
-   Base Badges
+   🎬 MovieCard Component styles
    =========================== */
 
-.hidden-gem-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+.movie-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.movie-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 4px 20px rgba(234, 255, 0, 0.08);
+}
+
+/* Specific pick borders */
+.movie-card.ml-powered {
+    border-color: rgba(234, 255, 0, 0.25);
+}
+
+.movie-card.top-pick {
+    border-color: var(--accent);
+}
+
+.movie-poster {
+    width: 100%;
+    height: 340px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s;
+}
+
+.movie-card:hover .movie-poster {
+    transform: scale(1.03);
+}
+
+.movie-info {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 /* ===========================
-   🧠 ML-Powered Styles
+   🏷️ Badges & Metadata
    =========================== */
-
-.movie-card.ml-powered {
-    border: 1px solid rgba(123, 47, 255, 0.2);
-}
 
 .movie-badges {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 6px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
 }
 
 .badge {
-    display: inline-block;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid transparent;
+}
+
+.hidden-gem-badge {
+    background: var(--accent);
+    color: var(--accent-dark);
+    border-color: var(--accent);
+}
+
+.top-pick-badge {
+    background: transparent;
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .ml-badge {
-    background: linear-gradient(135deg, rgba(123, 47, 255, 0.2), rgba(0, 212, 255, 0.2));
-    border: 1px solid rgba(123, 47, 255, 0.4);
-    color: #00d4ff;
+    background: rgba(234, 255, 0, 0.05);
+    border-color: var(--border);
+    color: var(--accent);
 }
 
+.tmdb-badge {
+    background: transparent;
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.movie-title {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.movie-rating {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+}
+
+.movie-overview {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ===========================
+   📊 Match / Similarity Scores
+   =========================== */
+
 .similarity-container {
-    margin: 0.5rem 0;
+    margin: 8px 0 12px 0;
 }
 
 .similarity-bar {
-    height: 6px;
+    height: 3px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--radius);
     overflow: hidden;
-    margin-bottom: 0.3rem;
+    margin-bottom: 4px;
 }
 
 .similarity-fill {
     height: 100%;
-    background: linear-gradient(90deg, #7b2fff, #00d4ff);
-    border-radius: 3px;
-    transition: width 0.5s ease;
+    background: var(--accent);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .similarity-text {
-    font-size: 0.8rem;
-    color: #00d4ff;
-    font-weight: 600;
-}
-
-/* ===========================
-   🔀 Hybrid Source Badges
-   =========================== */
-
-.movie-card.top-pick {
-    border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.top-pick-badge {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
-    border: 1px solid rgba(255, 215, 0, 0.4);
-    color: #ffd700;
-}
-
-.tmdb-badge {
-    background: linear-gradient(135deg, rgba(1, 180, 228, 0.2), rgba(144, 206, 161, 0.2));
-    border: 1px solid rgba(1, 180, 228, 0.4);
-    color: #01b4e4;
-}
-
-.similarity-fill.tmdb-fill {
-    background: linear-gradient(90deg, #01b4e4, #90cea1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .tmdb-score-text {
-    color: #01b4e4;
+    color: var(--text-primary);
+}
+
+.similarity-fill.tmdb-fill {
+    background: var(--text-primary);
+}
+
+.movie-match {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
 }
 
 /* ===========================
-   🔖 Poster Actions (NEW)
+   🔖 Action Buttons
    =========================== */
 
 .poster-container {
@@ -113,6 +188,7 @@
     gap: 6px;
     opacity: 0;
     transition: opacity 0.25s ease;
+    z-index: 5;
 }
 
 .poster-container:hover .poster-actions {
@@ -120,61 +196,49 @@
 }
 
 .action-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.8);
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
     padding: 0;
 }
 
 .action-btn:hover {
-    transform: scale(1.15);
-    background: rgba(0, 0, 0, 0.9);
+    border-color: var(--accent);
+    background: var(--bg-primary);
 }
 
 .action-btn.active {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.watchlist-btn.active {
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-}
-
-.favorite-btn.active {
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-}
-
-.rate-btn.active {
-    box-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
-    font-size: 0.7rem;
+    border-color: var(--accent);
+    background: var(--accent);
 }
 
 /* ===========================
-   ⭐ Star Rating Popup
+   ⭐ Ratings Popup
    =========================== */
 
 .star-rating-popup {
     display: flex;
-    gap: 4px;
-    padding: 8px 12px;
-    background: var(--bg-primary, #1a1a2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    justify-content: center;
 }
 
 .star {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     cursor: pointer;
-    transition: transform 0.15s ease, color 0.15s ease;
+    transition: all 0.1s;
     user-select: none;
 }
 
@@ -183,33 +247,35 @@
 }
 
 .star-filled {
-    color: #f59e0b;
+    color: var(--accent);
 }
 
 .star-empty {
-    color: #555;
+    color: #333;
 }
 
 /* ===========================
-   💬 Action Feedback Toast
+   💬 Action Feedback
    =========================== */
 
 .action-feedback {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+    background: var(--accent);
+    color: var(--accent-dark);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 6px;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
     text-align: center;
-    animation: feedbackSlide 0.3s ease;
+    animation: feedbackSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes feedbackSlide {
     from {
         opacity: 0;
-        transform: translateY(-8px);
+        transform: translateY(-4px);
     }
     to {
         opacity: 1;
@@ -218,20 +284,12 @@
 }
 
 /* ===========================
-   📱 MovieCard Mobile
+   📱 Responsive styles
    =========================== */
 
 @media (max-width: 768px) {
-    .movie-card {
-        font-size: 0.9rem;
-    }
-
-    .movie-title {
-        font-size: 0.95rem;
-    }
-
-    .movie-overview {
-        font-size: 0.8rem;
+    .movie-poster {
+        height: 240px;
     }
 
     .poster-actions {
@@ -244,11 +302,7 @@
         font-size: 0.85rem;
     }
 
-    .star-rating-popup {
-        padding: 6px 8px;
-    }
-
     .star {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
 }

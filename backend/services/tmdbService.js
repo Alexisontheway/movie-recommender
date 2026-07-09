@@ -48,11 +48,22 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// 🔄 Fetch with retry
+const NodeCache = require('node-cache');
+const tmdbCache = new NodeCache({ stdTTL: 21600, checkperiod: 120 }); // 6 hours standard cache TTL
+
+// 🔄 Fetch with retry (with local in-memory caching)
 async function fetchWithRetry(url, params = {}, retries = 3) {
+    const cacheKey = `${url}__${JSON.stringify(params)}`;
+    const cachedData = tmdbCache.get(cacheKey);
+    if (cachedData) {
+        console.log(`⚡ TMDB Cache HIT: ${url}`);
+        return cachedData;
+    }
+
     for (let i = 0; i < retries; i++) {
         try {
             const response = await tmdbApi.get(url, { params });
+            tmdbCache.set(cacheKey, response.data);
             return response.data;
         } catch (error) {
             console.log(`⚠️ Attempt ${i + 1} failed: ${error.message}`);
