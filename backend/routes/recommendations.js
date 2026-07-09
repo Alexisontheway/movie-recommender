@@ -6,7 +6,8 @@ const userProfileService = require("../services/userProfileService");
 const mlService = require("../services/mlService");
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:8000";
 
-// FIX 2: Filter out non-movie content
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 function isRealMovie(movie) {
   const title = (movie.title || "").toLowerCase();
   const overview = (movie.overview || "").toLowerCase();
@@ -30,7 +31,169 @@ function isRealMovie(movie) {
   return true;
 }
 
-// Quiz-based recommendations - FIX 2 applied
+/**
+ * Extract ML-ready metadata from a TMDB movie detail response.
+ * Converts structured genres/keywords/cast/director into space-separated strings
+ * for TF-IDF vectorization.
+ */
+function extractMLMetadata(details) {
+  if (!details) return null;
+
+  const genres = (details.genres || []).map(g => g.name.replace(/\s+/g, "")).join(" ");
+  const keywords = (details.keywords?.keywords || []).map(k => k.name.replace(/\s+/g, "")).join(" ");
+
+  let cast = "";
+  let director = "";
+  if (details.credits) {
+    cast = (details.credits.cast || []).slice(0, 5).map(c => c.name.replace(/\s+/g, "")).join(" ");
+    const dir = (details.credits.crew || []).find(c => c.job === "Director");
+    director = dir ? dir.name.replace(/\s+/g, "") : "";
+  }
+
+  return {
+    id: details.id,
+    title: details.title || "",
+    genres: genres,
+    keywords: keywords,
+    cast: cast,
+    director: director,
+    overview: details.overview || "",
+    vote_average: details.vote_average || 0,
+    popularity: details.popularity || 0,
+    original_language: details.original_language || "en",
+    genre_ids: (details.genres || []).map(g => g.id),
+    poster_path: details.poster_path || null,
+    backdrop_path: details.backdrop_path || null,
+    release_date: details.release_date || "",
+    vote_count: details.vote_count || 0,
+  };
+}
+
+/**
+ * Build a large candidate pool from TMDB for a given movie.
+ * Fetches from multiple sources: similar, recommendations, genre-discover, trending.
+ */
+async function buildCandidatePool(movieId, sourceGenreIds, sourceLang) {
+  const candidateIds = new Set();
+  const rawCandidates = [];
+
+  const addCandidates = (movies) => {
+    for (const m of movies) {
+      if (!candidateIds.has(m.id) && m.id !== parseInt(movieId)) {
+        candidateIds.add(m.id);
+        rawCandidates.push(m);
+      }
+    }
+  };
+
+  // Source 1: TMDB Similar Movies (page 1 + 2)
+  try {
+    const similar = await tmdbService.getSimilarMovies(movieId);
+    addCandidates(similar);
+  } catch (e) { console.log("Similar fetch failed:", e.message); }
+
+  await tmdbService.delay(250);
+
+  // Source 2: TMDB Recommendations
+  try {
+    const recs = await tmdbService.fetchWithRetry(`/movie/${movieId}/recommendations`);
+    if (recs && recs.results) addCandidates(recs.results);
+  } catch (e) { console.log("Recommendations fetch failed:", e.message); }
+
+  await tmdbService.delay(250);
+
+  // Source 3: Genre-matched Discover (high-quality pool)
+  if (sourceGenreIds.length > 0) {
+    try {
+      const genreStr = sourceGenreIds.slice(0, 3).join(",");
+      const discover1 = await tmdbService.fetchWithRetry("/discover/movie", {
+        with_genres: genreStr,
+        sort_by: "vote_average.desc",
+        "vote_count.gte": 100,
+        page: 1,
+      });
+      if (discover1 && discover1.results) addCandidates(discover1.results);
+
+      await tmdbService.delay(200);
+
+      const discover2 = await tmdbService.fetchWithRetry("/discover/movie", {
+        with_genres: genreStr,
+        sort_by: "popularity.desc",
+        "vote_count.gte": 50,
+        page: 1,
+      });
+      if (discover2 && discover2.results) addCandidates(discover2.results);
+    } catch (e) { console.log("Discover fetch failed:", e.message); }
+  }
+
+  await tmdbService.delay(250);
+
+  // Source 4: Same-language cinema (for non-English source)
+  if (sourceLang && sourceLang !== "en") {
+    try {
+      const langDiscover = await tmdbService.fetchWithRetry("/discover/movie", {
+        with_original_language: sourceLang,
+        sort_by: "vote_average.desc",
+        "vote_count.gte": 100,
+        page: 1,
+      });
+      if (langDiscover && langDiscover.results) addCandidates(langDiscover.results);
+    } catch (e) { console.log("Language discover failed:", e.message); }
+
+    await tmdbService.delay(250);
+  }
+
+  // Source 5: Trending (broadens pool with fresh content)
+  try {
+    const trending = await tmdbService.getTrendingMovies();
+    addCandidates(trending);
+  } catch (e) { console.log("Trending fetch failed:", e.message); }
+
+  // Filter: only real movies with valid data
+  const filtered = rawCandidates.filter(m => {
+    if (!m.poster_path) return false;
+    if (!m.vote_count || m.vote_count < 30) return false;
+    if (!m.vote_average || m.vote_average < 4.0) return false;
+    if (!isRealMovie(m)) return false;
+    return true;
+  });
+
+  console.log(`📦 Candidate pool: ${filtered.length} movies from ${rawCandidates.length} raw`);
+  return filtered;
+}
+
+/**
+ * Enrich a list of TMDB movie stubs with full details for ML metadata extraction.
+ * Uses batched fetching with rate limiting.
+ */
+async function enrichCandidatesWithDetails(candidates, batchSize = 8) {
+  const enriched = [];
+
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const batch = candidates.slice(i, i + batchSize);
+    const batchResults = await Promise.allSettled(
+      batch.map(c => tmdbService.getMovieDetails(c.id))
+    );
+
+    for (let j = 0; j < batchResults.length; j++) {
+      if (batchResults[j].status === "fulfilled" && batchResults[j].value) {
+        const meta = extractMLMetadata(batchResults[j].value);
+        if (meta) enriched.push(meta);
+      }
+    }
+
+    if (i + batchSize < candidates.length) {
+      await tmdbService.delay(300);
+    }
+  }
+
+  return enriched;
+}
+
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+// Quiz-based recommendations (unchanged from v1)
 router.post("/generate", async (req, res) => {
   try {
     const quizAnswers = req.body;
@@ -75,21 +238,23 @@ router.post("/generate", async (req, res) => {
   }
 });
 
-// ML Status
+
+// ML Status — v2 dynamic engine
 router.get("/ml/status", async (req, res) => {
-  const available = await mlService.isAvailable();
-  res.json({ ml_service: available ? "online" : "offline", url: ML_SERVICE_URL });
+  const statusData = await mlService.getStatus();
+  if (statusData) {
+    res.json({
+      ml_service: "online",
+      version: statusData.version || "2.0.0",
+      engine: statusData.engine || "dynamic-tfidf",
+      coverage: statusData.coverage || "800K+ movies",
+      mode: statusData.mode || "real-time",
+    });
+  } else {
+    res.json({ ml_service: "offline" });
+  }
 });
 
-// ML Movies
-router.get("/ml/movies", async (req, res) => {
-  try {
-    const response = await fetch(ML_SERVICE_URL + "/movies");
-    if (!response.ok) return res.status(503).json({ success: false });
-    const data = await response.json();
-    res.json({ success: true, ...data });
-  } catch (e) { res.status(503).json({ success: false }); }
-});
 
 // TMDB Live Search
 router.get("/search", async (req, res) => {
@@ -103,233 +268,342 @@ router.get("/search", async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: "Search failed" }); }
 });
 
-// FIX 1: Enrich ML result — try ID first, then title search fallback
-async function enrichMLResult(rec) {
-  try {
-    let details = null;
 
-    // Attempt 1: TMDB by ID
-    if (rec.id) {
-      try {
-        const d = await tmdbService.getMovieDetails(rec.id);
-        if (d && d.title && d.poster_path) details = d;
-      } catch(e) {
-        console.log("TMDB ID lookup failed for " + rec.id + ", trying title...");
-      }
-    }
+// ─── HYBRID v2: Dynamic ML + TMDB Scoring ─────────────────────────────────────
 
-    // Attempt 2: Search TMDB by title (fallback)
-    if (!details && rec.title) {
-      try {
-        await tmdbService.delay(150);
-        const searchResults = await tmdbService.searchMovies(rec.title);
-        if (searchResults && searchResults.length > 0) {
-          const exact = searchResults.find(m =>
-            m.title.toLowerCase() === rec.title.toLowerCase()
-          );
-          const best = exact || searchResults[0];
-          try {
-            const full = await tmdbService.getMovieDetails(best.id);
-            if (full && full.title) details = full;
-            else details = best;
-          } catch(e) {
-            details = best;
-          }
-        }
-      } catch(e) {
-        console.log("Title search failed for: " + rec.title);
-      }
-    }
-
-    if (!details) return null;
-    if (details.vote_count && details.vote_count < 50) return null;
-    if (details.vote_average && details.vote_average < 5.0) return null;
-    if (!details.poster_path) return null;
-
-    const f = tmdbService.formatMovie(details);
-    return {
-      ...f,
-      similarity_score: rec.similarity_score || 0,
-      source: "ml",
-      score: Math.round((rec.similarity_score || 0.5) * 200)
-    };
-  } catch(e) {
-    console.log("enrichMLResult error: " + e.message);
-    return null;
-  }
-}
-
-// HYBRID Recommendations (ML + TMDB) - FIX 1 applied
 router.get("/ml/hybrid/:movieId", async (req, res) => {
   try {
     const movieId = req.params.movieId;
     const movieTitle = req.query.title;
-    const count = parseInt(req.query.count) || 10;
-    console.log("Hybrid request: " + movieTitle + " (ID: " + movieId + ")");
+    const count = parseInt(req.query.count) || 15;
+    console.log(`🧠 Hybrid v2 request: ${movieTitle} (ID: ${movieId})`);
 
-    let sourceMovie = null;
-    try { sourceMovie = await tmdbService.getMovieDetails(movieId); } catch(e) {}
-    const sourceGenreIds = sourceMovie && sourceMovie.genres ? sourceMovie.genres.map(g => g.id) : [];
-    const sourceLang = sourceMovie ? sourceMovie.original_language : "en";
+    // Step 1: Get source movie full details
+    let sourceDetails = null;
+    try { sourceDetails = await tmdbService.getMovieDetails(movieId); } catch (e) {}
 
-    const mlPromise = movieTitle ? mlService.getRecommendations(movieTitle, count) : Promise.resolve(null);
-    const tmdbPromise = tmdbService.getSimilarMovies(movieId).catch(() => []);
-    const [mlResult, tmdbSimilar] = await Promise.all([mlPromise, tmdbPromise]);
+    const sourceGenreIds = sourceDetails?.genres ? sourceDetails.genres.map(g => g.id) : [];
+    const sourceLang = sourceDetails?.original_language || "en";
+    const sourceMeta = extractMLMetadata(sourceDetails);
 
-    const mlMovies = [];
+    // Step 2: Build candidate pool from TMDB (~100-150 movies)
+    const rawPool = await buildCandidatePool(movieId, sourceGenreIds, sourceLang);
+
+    // Step 3: Enrich candidates with full metadata for ML
+    const enrichedCandidates = await enrichCandidatesWithDetails(rawPool);
+    console.log(`🔬 Enriched ${enrichedCandidates.length} candidates with ML metadata`);
+
+    // Step 4: Send to ML engine for dynamic TF-IDF scoring
+    let mlResults = [];
     let mlAvailable = false;
-    if (mlResult && mlResult.recommendations && mlResult.recommendations.length > 0) {
-      mlAvailable = true;
-      for (const rec of mlResult.recommendations) {
-        const enriched = await enrichMLResult(rec);
-        if (enriched) mlMovies.push(enriched);
-        await tmdbService.delay(200);
+
+    if (sourceMeta && enrichedCandidates.length > 0) {
+      const mlResponse = await mlService.getDynamicRecommendations(
+        sourceMeta,
+        enrichedCandidates,
+        count * 2  // request extra so we can merge
+      );
+
+      if (mlResponse && mlResponse.recommendations) {
+        mlAvailable = true;
+        mlResults = mlResponse.recommendations;
+        console.log(`🧠 ML returned ${mlResults.length} results (${mlResponse.features_extracted} features)`);
       }
     }
 
-    const tmdbMovies = (tmdbSimilar || []).filter(m => m.poster_path && m.vote_count >= 50 && m.vote_average >= 5.0 && m.overview && m.overview.length >= 20).slice(0, 15).map(movie => {
-      const f = tmdbService.formatMovie(movie);
-      let score = movie.vote_average * 4.8 + Math.min(movie.popularity / 10, 15);
-      const movieGenres = movie.genre_ids || [];
+    // Step 5: Score and merge ML results with TMDB-scored results
+    const mergedMap = {};
+
+    // Add ML results (with ML similarity as primary score)
+    for (const mlRec of mlResults) {
+      const candidate = enrichedCandidates.find(c => c.id === mlRec.id);
+      if (!candidate) continue;
+
+      const f = tmdbService.formatMovie({
+        ...candidate,
+        poster_path: candidate.poster_path,
+        backdrop_path: candidate.backdrop_path,
+        genre_ids: candidate.genre_ids,
+      });
+
+      // ML score: similarity * 60 + quality bonus
+      let score = mlRec.similarity_score * 60;
+      score += Math.min((candidate.vote_average || 0) * 3, 30);
+      score += Math.min((candidate.popularity || 0) / 20, 10);
+
+      // Genre overlap bonus
+      const movieGenres = candidate.genre_ids || [];
+      const overlap = movieGenres.filter(g => sourceGenreIds.includes(g)).length;
+      if (sourceGenreIds.length > 0) score += (overlap / sourceGenreIds.length) * 15;
+
+      // Language bonus
+      if (candidate.original_language === sourceLang) score += 8;
+
+      mergedMap[candidate.id] = {
+        ...f,
+        source: "ml",
+        score: Math.min(Math.round(score), 100),
+        similarity_score: mlRec.similarity_score,
+      };
+    }
+
+    // Add TMDB-only candidates (not in ML results or boost existing)
+    for (const candidate of enrichedCandidates) {
+      if (mergedMap[candidate.id]) {
+        // Already from ML — mark as "both" if high quality
+        if (candidate.vote_count > 100 && candidate.vote_average > 6.5) {
+          mergedMap[candidate.id].source = "both";
+          mergedMap[candidate.id].score = Math.min(mergedMap[candidate.id].score + 10, 100);
+        }
+        continue;
+      }
+
+      const f = tmdbService.formatMovie({
+        ...candidate,
+        poster_path: candidate.poster_path,
+        backdrop_path: candidate.backdrop_path,
+        genre_ids: candidate.genre_ids,
+      });
+
+      let score = (candidate.vote_average || 0) * 4.8 + Math.min((candidate.popularity || 0) / 10, 15);
+      const movieGenres = candidate.genre_ids || [];
       const overlap = movieGenres.filter(g => sourceGenreIds.includes(g)).length;
       if (sourceGenreIds.length > 0) score += (overlap / sourceGenreIds.length) * 20;
-      if (movie.original_language === sourceLang) score += 10;
-      if (movie.vote_count > 1000) score += 7; else if (movie.vote_count > 500) score += 5; else if (movie.vote_count > 100) score += 3;
-      return { ...f, source: "tmdb", score: Math.min(Math.round(score), 100) };
-    });
+      if (candidate.original_language === sourceLang) score += 10;
+      if (candidate.vote_count > 1000) score += 7;
+      else if (candidate.vote_count > 500) score += 5;
+      else if (candidate.vote_count > 100) score += 3;
 
-    const mergedMap = {};
-    for (const m of mlMovies) mergedMap[m.id] = m;
-    for (const m of tmdbMovies) {
-      if (mergedMap[m.id]) { mergedMap[m.id].source = "both"; mergedMap[m.id].score = Math.min(mergedMap[m.id].score + 15, 100); }
-      else mergedMap[m.id] = m;
+      mergedMap[candidate.id] = { ...f, source: "tmdb", score: Math.min(Math.round(score), 100) };
     }
+
+    // Remove source movie from results
     delete mergedMap[parseInt(movieId)];
 
-    const merged = Object.values(mergedMap).sort((a, b) => b.score - a.score).slice(0, 20).map((m, i) => ({ ...m, rank: i + 1 }));
+    const merged = Object.values(mergedMap)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, count)
+      .map((m, i) => ({ ...m, rank: i + 1 }));
+
     const mlCount = merged.filter(m => m.source === "ml" || m.source === "both").length;
     const tmdbCount = merged.filter(m => m.source === "tmdb" || m.source === "both").length;
     const bothCount = merged.filter(m => m.source === "both").length;
 
-    res.json({ success: true, source_movie: movieTitle, source_movie_id: movieId, ml_available: mlAvailable, total: merged.length, ml_count: mlCount, tmdb_count: tmdbCount, both_count: bothCount, recommendations: merged });
+    res.json({
+      success: true,
+      source_movie: movieTitle,
+      source_movie_id: movieId,
+      ml_available: mlAvailable,
+      engine: "dynamic-tfidf-v2",
+      candidates_analyzed: enrichedCandidates.length,
+      total: merged.length,
+      ml_count: mlCount,
+      tmdb_count: tmdbCount,
+      both_count: bothCount,
+      recommendations: merged,
+    });
   } catch (error) {
+    console.error("Hybrid v2 error:", error);
     res.status(500).json({ success: false, message: "Failed to get recommendations", error: error.message });
   }
 });
 
-// MULTI-MOVIE Hybrid - FIX 1, 2, 4 applied
+
+// ─── MULTI-MOVIE Hybrid v2 ────────────────────────────────────────────────────
+
 router.post("/ml/multi", async (req, res) => {
   try {
     const { movies, count } = req.body;
-    if (!movies || !Array.isArray(movies) || movies.length === 0) return res.status(400).json({ success: false, message: "Please provide movies" });
-    console.log("Multi-movie request for " + movies.length + " movies");
+    if (!movies || !Array.isArray(movies) || movies.length === 0) {
+      return res.status(400).json({ success: false, message: "Please provide movies" });
+    }
+    console.log(`🧠 Multi-movie v2 request for ${movies.length} movies`);
 
+    // Gather source metadata
     const allSourceGenres = [];
     const allSourceLangs = [];
+    const sourceMetadataList = [];
+
     for (const movie of movies) {
       try {
         const d = await tmdbService.getMovieDetails(movie.id);
         if (d && d.genres) allSourceGenres.push(...d.genres.map(g => g.id));
         if (d) allSourceLangs.push(d.original_language);
+        const meta = extractMLMetadata(d);
+        if (meta) sourceMetadataList.push(meta);
         await tmdbService.delay(200);
-      } catch(e) {}
+      } catch (e) {}
     }
+
     const uniqueSourceGenres = [...new Set(allSourceGenres)];
     const langCounts = {};
     allSourceLangs.forEach(l => { langCounts[l] = (langCounts[l] || 0) + 1; });
     const primaryLang = Object.keys(langCounts).sort((a, b) => langCounts[b] - langCounts[a])[0] || "en";
-    console.log("Source genres: " + uniqueSourceGenres + " | Primary lang: " + primaryLang);
 
-    let allRecs = [];
+    // Build merged candidate pool from all source movies
+    const allCandidateIds = new Set();
+    const allRawCandidates = [];
+
     for (const movie of movies) {
-      // TMDB Similar
-      try {
-        const similar = await tmdbService.getSimilarMovies(movie.id);
-        const filtered = similar.filter(m => {
-          if (!m.poster_path) return false;
-          if (!m.vote_count || m.vote_count < 50) return false;
-          if (!m.vote_average || m.vote_average < 5.0) return false;
-          if (!m.overview || m.overview.length < 20) return false;
-          if (!isRealMovie(m)) return false;
-          return true;
-        }).slice(0, 10).map(m => {
-          let score = m.vote_average * 4.8 + Math.min(m.popularity / 10, 15);
-          const movieGenres = m.genre_ids || [];
-          const overlap = movieGenres.filter(g => uniqueSourceGenres.includes(g)).length;
-          if (uniqueSourceGenres.length > 0) score += (overlap / Math.min(uniqueSourceGenres.length, 5)) * 25;
-          if (m.original_language === primaryLang) score += 12;
-          if (m.vote_count > 1000) score += 7; else if (m.vote_count > 500) score += 5; else if (m.vote_count > 100) score += 3;
-          return { ...tmdbService.formatMovie(m), source: "tmdb", ml_source: movie.title, score: Math.min(Math.round(score), 100) };
-        });
-        allRecs.push(...filtered);
-      } catch(e) {}
-
-      // FIX 1: ML results with title-based enrichment
-      try {
-        const mlResult = await mlService.getRecommendations(movie.title, count || 5);
-        if (mlResult && mlResult.recommendations) {
-          for (const rec of mlResult.recommendations) {
-            if (rec.vote_average && rec.vote_average < 5.0) continue;
-            const enriched = await enrichMLResult(rec);
-            if (enriched) {
-              enriched.ml_source = movie.title;
-              allRecs.push(enriched);
-            }
-            await tmdbService.delay(150);
-          }
+      const pool = await buildCandidatePool(movie.id, uniqueSourceGenres, primaryLang);
+      for (const c of pool) {
+        if (!allCandidateIds.has(c.id)) {
+          allCandidateIds.add(c.id);
+          allRawCandidates.push(c);
         }
-      } catch(e) {
-        console.log("ML failed for " + movie.title + ": " + e.message);
       }
-      await tmdbService.delay(500);
+      await tmdbService.delay(300);
     }
 
-    // Deduplicate
-    const unique = {};
+    // Enrich all candidates
+    const enrichedCandidates = await enrichCandidatesWithDetails(allRawCandidates);
+    console.log(`🔬 Multi: Enriched ${enrichedCandidates.length} unique candidates`);
+
+    // Create a combined source "super-movie" for ML (merge all source metadata)
+    const combinedSource = {
+      id: null,
+      title: movies.map(m => m.title).join(" + "),
+      genres: sourceMetadataList.map(s => s.genres).join(" "),
+      keywords: sourceMetadataList.map(s => s.keywords).join(" "),
+      cast: sourceMetadataList.map(s => s.cast).join(" "),
+      director: sourceMetadataList.map(s => s.director).join(" "),
+      overview: sourceMetadataList.map(s => s.overview).join(" "),
+      vote_average: 0,
+      popularity: 0,
+    };
+
+    // Send to ML engine
+    let mlResults = [];
+    let mlAvailable = false;
+
+    if (enrichedCandidates.length > 0) {
+      const mlResponse = await mlService.getDynamicRecommendations(
+        combinedSource,
+        enrichedCandidates,
+        (count || 5) * movies.length * 2
+      );
+
+      if (mlResponse && mlResponse.recommendations) {
+        mlAvailable = true;
+        mlResults = mlResponse.recommendations;
+      }
+    }
+
+    // Build merged results
+    const mergedMap = {};
     const sourceIds = movies.map(m => m.id);
-    for (const rec of allRecs) {
-      if (sourceIds.includes(rec.id)) continue;
-      if (!isRealMovie(rec)) continue;
-      if (!unique[rec.id] || rec.score > unique[rec.id].score) unique[rec.id] = rec;
-      else if (unique[rec.id] && rec.source !== unique[rec.id].source) {
-        unique[rec.id].source = "both";
-        unique[rec.id].score = Math.min(unique[rec.id].score + 10, 100);
-      }
+
+    for (const mlRec of mlResults) {
+      if (sourceIds.includes(mlRec.id)) continue;
+      const candidate = enrichedCandidates.find(c => c.id === mlRec.id);
+      if (!candidate) continue;
+      if (!isRealMovie(candidate)) continue;
+
+      const f = tmdbService.formatMovie({
+        ...candidate,
+        poster_path: candidate.poster_path,
+        backdrop_path: candidate.backdrop_path,
+        genre_ids: candidate.genre_ids,
+      });
+
+      let score = mlRec.similarity_score * 60;
+      score += Math.min((candidate.vote_average || 0) * 3, 30);
+      score += Math.min((candidate.popularity || 0) / 20, 10);
+
+      const movieGenres = candidate.genre_ids || [];
+      const overlap = movieGenres.filter(g => uniqueSourceGenres.includes(g)).length;
+      if (uniqueSourceGenres.length > 0) score += (overlap / Math.min(uniqueSourceGenres.length, 5)) * 25;
+      if (candidate.original_language === primaryLang) score += 12;
+      if (candidate.vote_count > 1000) score += 7;
+      else if (candidate.vote_count > 500) score += 5;
+      else if (candidate.vote_count > 100) score += 3;
+
+      mergedMap[candidate.id] = { ...f, source: "ml", score: Math.min(Math.round(score), 100) };
     }
 
-    // FIX 4: Strong genre penalty/boost
-    for (const id in unique) {
-      const rec = unique[id];
+    // Add TMDB-only fallbacks
+    for (const candidate of enrichedCandidates) {
+      if (sourceIds.includes(candidate.id)) continue;
+      if (mergedMap[candidate.id]) {
+        if (candidate.vote_count > 100) {
+          mergedMap[candidate.id].source = "both";
+          mergedMap[candidate.id].score = Math.min(mergedMap[candidate.id].score + 10, 100);
+        }
+        continue;
+      }
+      if (!isRealMovie(candidate)) continue;
+
+      const f = tmdbService.formatMovie({
+        ...candidate,
+        poster_path: candidate.poster_path,
+        backdrop_path: candidate.backdrop_path,
+        genre_ids: candidate.genre_ids,
+      });
+
+      let score = (candidate.vote_average || 0) * 4.8 + Math.min((candidate.popularity || 0) / 10, 15);
+      const movieGenres = candidate.genre_ids || [];
+      const overlap = movieGenres.filter(g => uniqueSourceGenres.includes(g)).length;
+      if (uniqueSourceGenres.length > 0) score += (overlap / Math.min(uniqueSourceGenres.length, 5)) * 25;
+      if (candidate.original_language === primaryLang) score += 12;
+      if (candidate.vote_count > 1000) score += 7;
+      else if (candidate.vote_count > 500) score += 5;
+      else if (candidate.vote_count > 100) score += 3;
+
+      mergedMap[candidate.id] = { ...f, source: "tmdb", score: Math.min(Math.round(score), 100) };
+    }
+
+    // Genre penalty/boost
+    for (const id in mergedMap) {
+      const rec = mergedMap[id];
       const recGenres = rec.genreIds || [];
       const genreOverlap = recGenres.filter(g => uniqueSourceGenres.includes(g)).length;
       const overlapRatio = uniqueSourceGenres.length > 0 ? genreOverlap / Math.min(uniqueSourceGenres.length, 4) : 0;
 
       if (uniqueSourceGenres.length > 0) {
-        if (genreOverlap === 0) {
-          rec.score = Math.max(rec.score - 45, 0);
-        } else if (overlapRatio < 0.25) {
-          rec.score = Math.max(rec.score - 25, 0);
-        } else if (overlapRatio >= 0.75) {
-          rec.score = Math.min(rec.score + 25, 100);
-        } else if (overlapRatio >= 0.5) {
-          rec.score = Math.min(rec.score + 15, 100);
-        }
+        if (genreOverlap === 0) rec.score = Math.max(rec.score - 45, 0);
+        else if (overlapRatio < 0.25) rec.score = Math.max(rec.score - 25, 0);
+        else if (overlapRatio >= 0.75) rec.score = Math.min(rec.score + 25, 100);
+        else if (overlapRatio >= 0.5) rec.score = Math.min(rec.score + 15, 100);
       }
 
-      // Language bonus
       if (rec.originalLanguage === primaryLang && primaryLang !== "en") {
         rec.score = Math.min(rec.score + 10, 100);
       }
     }
 
-    const sorted = Object.values(unique).sort((a, b) => b.score - a.score).slice(0, 20).map((m, i) => ({ ...m, rank: i + 1 }));
+    const sorted = Object.values(mergedMap)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
+      .map((m, i) => ({ ...m, rank: i + 1 }));
+
     const mlCount = sorted.filter(m => m.source === "ml" || m.source === "both").length;
     const tmdbCount = sorted.filter(m => m.source === "tmdb" || m.source === "both").length;
 
-    res.json({ success: true, source_movies: movies.map(m => m.title), total: sorted.length, ml_count: mlCount, tmdb_count: tmdbCount, recommendations: sorted });
+    res.json({
+      success: true,
+      source_movies: movies.map(m => m.title),
+      engine: "dynamic-tfidf-v2",
+      candidates_analyzed: enrichedCandidates.length,
+      total: sorted.length,
+      ml_count: mlCount,
+      tmdb_count: tmdbCount,
+      recommendations: sorted,
+    });
   } catch (error) {
+    console.error("Multi v2 error:", error);
     res.status(500).json({ success: false, message: "Failed", error: error.message });
   }
 });
+
+
+// Legacy endpoint
+router.get("/ml/movies", async (req, res) => {
+  res.json({
+    success: true,
+    total: 0,
+    note: "v2 dynamic engine — no static movie list. Coverage: 800K+ TMDB movies.",
+  });
+});
+
 
 module.exports = router;

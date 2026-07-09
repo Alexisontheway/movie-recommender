@@ -249,6 +249,7 @@ module.exports = {
     searchMovies,
     getMovieDetails,
     getSimilarMovies,
+    fetchWithRetry,
     fetchMultiplePages,
     formatMovie,
     GENRE_MAP,

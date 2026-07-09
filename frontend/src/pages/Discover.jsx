@@ -13,6 +13,7 @@ export default function Discover() {
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [mlStatus, setMlStatus] = useState(null);
+  const [mlInfo, setMlInfo] = useState(null);
   const [error, setError] = useState('');
   const [selectedMovies, setSelectedMovies] = useState([]);
   const [mode, setMode] = useState('single');
@@ -25,6 +26,7 @@ export default function Discover() {
       try {
         const statusRes = await mlApi.getStatus();
         setMlStatus(statusRes.data.ml_service);
+        setMlInfo(statusRes.data);
       } catch (err) {
         setMlStatus('offline');
       }
@@ -85,6 +87,7 @@ export default function Discover() {
         setRecommendations(res.data.recommendations);
         setStats({
           total: res.data.total,
+          candidatesAnalyzed: res.data.candidates_analyzed || 0,
           mlCount: res.data.ml_count,
           tmdbCount: res.data.tmdb_count,
           bothCount: res.data.both_count,
@@ -164,7 +167,7 @@ export default function Discover() {
           {mlStatus && (
             <span className={`ml-status ${mlStatus}`}>
               {mlStatus === 'online' ? '🟢 ML Engine Online' : '🔴 ML Engine Offline'}
-              {mlStatus === 'online' && ' • 4,800 movies in ML brain'}
+              {mlStatus === 'online' && mlInfo && ` • ${mlInfo.coverage || '800K+ movies'} • ${mlInfo.engine || 'dynamic-tfidf'}`}
             </span>
           )}
         </div>
@@ -279,11 +282,12 @@ export default function Discover() {
         {stats && (
           <div className="stats-bar">
             <span>📊 {stats.total} recommendations</span>
+            {stats.candidatesAnalyzed > 0 && <span>🔬 {stats.candidatesAnalyzed} candidates analyzed</span>}
             {stats.mlCount > 0 && <span>🧠 {stats.mlCount} ML picks</span>}
             {stats.tmdbCount > 0 && <span>🎬 {stats.tmdbCount} TMDB picks</span>}
             {stats.bothCount > 0 && <span>⭐ {stats.bothCount} top picks</span>}
             {stats.mlAvailable === false && (
-              <span className="stats-note">ℹ️ Movie not in ML dataset — using TMDB</span>
+              <span className="stats-note">ℹ️ ML engine unavailable — using TMDB scoring</span>
             )}
           </div>
         )}

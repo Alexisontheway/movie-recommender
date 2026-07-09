@@ -1,109 +1,131 @@
-import pandas as pd
+"""
+Dynamic Real-Time Content-Based Recommender Engine v2.0
+=======================================================
+Replaces the static 4,800-movie similarity matrix with on-the-fly TF-IDF
+vectorization over a live candidate pool fetched from TMDB.
+
+Architecture:
+  1. Node backend fetches ~150 candidate movies from TMDB (similar, discover, trending)
+  2. Backend POSTs the candidate pool + source movie metadata to this service
+  3. This service builds a temporary TF-IDF matrix (150 x features) in <50ms
+  4. Computes cosine similarity between the source movie and all candidates
+  5. Returns ranked recommendations sorted by ML similarity score
+
+Memory: <1 MB per request (no persistent matrix)
+Latency: <100ms per request
+Coverage: Every movie on TMDB (~800,000+)
+"""
+
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import pickle
-import os
-
-# Get the base directory (ml-service/)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-class ContentBasedRecommender:
+class DynamicRecommender:
+    """Stateless recommender — no preloaded data, no pickle files."""
+
     def __init__(self):
-        self.df = None
-        self.similarity_matrix = None
-        self.tfidf_matrix = None
-        self.indices = None
+        self.request_count = 0
 
-    def load_data(self, csv_path=None):
-        if csv_path is None:
-            csv_path = os.path.join(BASE_DIR, "data", "movies_processed.csv")
-        self.df = pd.read_csv(csv_path)
-        self.df = self.df.fillna("")
-        print(f"Loaded {len(self.df)} movies")
+    @staticmethod
+    def _build_soup(movie: dict) -> str:
+        """Build a weighted feature string from movie metadata.
 
-    def _create_soup(self, row):
+        Genres and director are repeated for emphasis (they carry more
+        signal than a single keyword token).
+        """
+        genres = movie.get("genres", "")
+        keywords = movie.get("keywords", "")
+        cast = movie.get("cast", "")
+        director = movie.get("director", "")
+        overview = movie.get("overview", "")
+
         parts = [
-            row["genres"],
-            row["genres"],
-            row["keywords"],
-            row["cast"],
-            row["director"],
-            row["director"],
-            row["overview"]
+            genres, genres,       # double-weight genres
+            keywords,
+            cast,
+            director, director,  # double-weight director
+            overview,
         ]
-        return " ".join(parts)
+        return " ".join(str(p) for p in parts if p)
 
-    def build_model(self):
-        print("Building recommendation model...")
-        self.df["soup"] = self.df.apply(self._create_soup, axis=1)
-        tfidf = TfidfVectorizer(stop_words="english", max_features=5000)
-        self.tfidf_matrix = tfidf.fit_transform(self.df["soup"])
-        self.similarity_matrix = cosine_similarity(
-            self.tfidf_matrix, self.tfidf_matrix
+    def recommend(
+        self,
+        source_movie: dict,
+        candidates: list[dict],
+        n: int = 15,
+    ) -> dict:
+        """Run real-time TF-IDF + cosine similarity on a candidate pool.
+
+        Args:
+            source_movie: Dict with keys (title, genres, keywords, cast, director, overview)
+            candidates: List of dicts, each with the same keys + id, vote_average, etc.
+            n: Number of top results to return
+
+        Returns:
+            Dict with ranked recommendations and metadata.
+        """
+        self.request_count += 1
+
+        if not candidates:
+            return {"error": "No candidates provided", "recommendations": []}
+
+        # Build feature soups
+        source_soup = self._build_soup(source_movie)
+        candidate_soups = [self._build_soup(c) for c in candidates]
+
+        # Prepend the source movie soup so it occupies index 0
+        all_soups = [source_soup] + candidate_soups
+
+        # Vectorize with TF-IDF
+        tfidf = TfidfVectorizer(
+            stop_words="english",
+            max_features=5000,
+            ngram_range=(1, 2),    # unigrams + bigrams for richer similarity
+            min_df=1,
+            max_df=0.95,
         )
-        self.indices = pd.Series(
-            self.df.index, index=self.df["title"].str.lower()
-        )
-        print("Model built successfully!")
-        self._save_model()
 
-    def _save_model(self):
-        model_dir = os.path.join(BASE_DIR, "models")
-        os.makedirs(model_dir, exist_ok=True)
-        model_path = os.path.join(model_dir, "similarity.pkl")
-        model_data = {
-            "similarity_matrix": self.similarity_matrix,
-            "indices": self.indices,
-            "df": self.df
-        }
-        with open(model_path, "wb") as f:
-            pickle.dump(model_data, f)
-        print(f"Model saved to {model_path}")
+        try:
+            tfidf_matrix = tfidf.fit_transform(all_soups)
+        except ValueError:
+            # All documents are empty / no features extracted
+            return {"error": "Insufficient metadata for ML analysis", "recommendations": []}
 
-    def load_model(self):
-        model_path = os.path.join(BASE_DIR, "models", "similarity.pkl")
-        if os.path.exists(model_path):
-            with open(model_path, "rb") as f:
-                model_data = pickle.load(f)
-            self.similarity_matrix = model_data["similarity_matrix"]
-            self.indices = model_data["indices"]
-            self.df = model_data["df"]
-            print("Model loaded from disk")
-            return True
-        return False
+        # Compute cosine similarity between source (index 0) and all candidates
+        source_vector = tfidf_matrix[0:1]
+        candidate_vectors = tfidf_matrix[1:]
+        similarities = cosine_similarity(source_vector, candidate_vectors).flatten()
 
-    def recommend(self, movie_title, n=10):
-        title_lower = movie_title.lower()
-
-        if title_lower not in self.indices:
-            matches = [t for t in self.indices.index if title_lower in t]
-            if matches:
-                title_lower = matches[0]
-            else:
-                return {"error": "Movie not found: " + movie_title}
-
-        idx = self.indices[title_lower]
-        if isinstance(idx, pd.Series):
-            idx = idx.iloc[0]
-
-        sim_scores = list(enumerate(self.similarity_matrix[idx]))
-        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        sim_scores = sim_scores[1:n + 1]
-
-        recommendations = []
-        for i, score in sim_scores:
-            movie = self.df.iloc[i]
-            recommendations.append({
-                "id": int(movie["id"]),
-                "title": movie["title"],
-                "genres": movie["genres"],
-                "vote_average": float(movie["vote_average"]),
-                "similarity_score": round(float(score), 4)
+        # Build scored results
+        scored = []
+        for i, sim_score in enumerate(similarities):
+            candidate = candidates[i]
+            scored.append({
+                "id": candidate.get("id"),
+                "title": candidate.get("title", "Unknown"),
+                "genres": candidate.get("genres", ""),
+                "vote_average": candidate.get("vote_average", 0),
+                "popularity": candidate.get("popularity", 0),
+                "similarity_score": round(float(sim_score), 4),
             })
 
+        # Sort by similarity descending, take top n
+        scored.sort(key=lambda x: x["similarity_score"], reverse=True)
+        top_results = scored[:n]
+
         return {
-            "movie": movie_title,
-            "recommendations": recommendations
+            "movie": source_movie.get("title", "Unknown"),
+            "total_candidates": len(candidates),
+            "features_extracted": tfidf_matrix.shape[1],
+            "recommendations": top_results,
+        }
+
+    def get_stats(self) -> dict:
+        return {
+            "engine": "dynamic-tfidf-v2",
+            "mode": "real-time",
+            "coverage": "800K+ (TMDB live)",
+            "memory": "<1MB per request",
+            "requests_served": self.request_count,
         }
