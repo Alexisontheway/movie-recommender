@@ -87,7 +87,7 @@ export default function Header() {
                         onKeyDown={handleKeyDown}
                         onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                         className="header-search-input"
-                        spellCheck="false"
+                        spellCheck={false}
                         autoComplete="off"
                         autoCorrect="off"
                         autoCapitalize="off"
