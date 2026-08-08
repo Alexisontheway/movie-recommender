@@ -16,9 +16,9 @@
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
 
----
+> **Note:** The ⚡ **API** runs on a free-tier Render instance and may take **~30s to wake** on first load. The frontend on Vercel is always fast.
 
-</div>
+---
 
 ## 🎥 What Is This?
 
@@ -440,6 +440,12 @@ quiz_history (id, user_id→users, answers[JSONB], created_at)
 *Built with ☕ and a lot of movie nights.*
 
 </div>
+
+---
+
+## ⚖️ An honest trade-off
+
+The ML engine is **content-based only** — TF-IDF over plot/features with cosine similarity — so recommendations are always "more like what you liked," never serendipitous the way collaborative filtering ("people who liked this also liked…") can be. The similarity matrix is also built on a curated corpus of ~4,800 movies: everything beyond that is still searchable and enrichable in real time via TMDB's 800,000+ catalog, but it won't surface in ML-driven recommendations until it's added to the corpus. The quiz is a hand-tuned scoring heuristic (genre/rating/era weights), not a trained model — deliberately, because a 5-question quiz doesn't generate enough signal to train on. And the whole thing leans on free-tier infrastructure: the API on Render sleeps after idle (~30s cold start), and real-time search depends on the live TMDB API, so rate limits or outages degrade search but never touch the core recommendation matrix. These are the trade-offs of an honest, auditable pipeline over a black-box model.
 
 ---
 
