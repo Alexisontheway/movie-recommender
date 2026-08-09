@@ -16,6 +16,8 @@ Latency: <100ms per request
 Coverage: Every movie on TMDB (~800,000+)
 """
 
+import threading
+
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -26,6 +28,8 @@ class DynamicRecommender:
 
     def __init__(self):
         self.request_count = 0
+        # FastAPI runs sync endpoints in a threadpool — guard the counter.
+        self._lock = threading.Lock()
 
     @staticmethod
     def _build_soup(movie: dict) -> str:
@@ -65,7 +69,8 @@ class DynamicRecommender:
         Returns:
             Dict with ranked recommendations and metadata.
         """
-        self.request_count += 1
+        with self._lock:
+            self.request_count += 1
 
         if not candidates:
             return {"error": "No candidates provided", "recommendations": []}

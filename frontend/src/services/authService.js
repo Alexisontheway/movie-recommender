@@ -38,7 +38,14 @@ const authService = {
     // Get stored user
     getUser() {
         const user = localStorage.getItem(USER_KEY);
-        return user ? JSON.parse(user) : null;
+        if (!user) return null;
+        try {
+            const parsed = JSON.parse(user);
+            // Shape guard — corrupt/unexpected storage must not crash the app.
+            return parsed && typeof parsed === 'object' && typeof parsed.username === 'string' ? parsed : null;
+        } catch {
+            return null;
+        }
     },
 
     // Check if logged in

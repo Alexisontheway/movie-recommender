@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const tmdbService = require('../services/tmdbService');
+const { isSafeHref } = require('../middleware/security');
 
 // GET /api/movies — Get popular movies
 router.get('/', async (req, res) => {
@@ -13,7 +14,8 @@ router.get('/', async (req, res) => {
         const formatted = movies.map(m => tmdbService.formatMovie(m));
         res.json({ message: '🎬 Popular movies!', count: formatted.length, movies: formatted });
     } catch (error) {
-        res.status(500).json({ message: '❌ Failed to fetch movies', error: error.message });
+        console.error('Failed to fetch movies:', error.message);
+        res.status(500).json({ message: '❌ Failed to fetch movies' });
     }
 });
 
@@ -26,7 +28,8 @@ router.get('/search', async (req, res) => {
         const formatted = movies.map(m => tmdbService.formatMovie(m));
         res.json({ message: `🔍 Search results for "${q}"`, query: q, count: formatted.length, movies: formatted });
     } catch (error) {
-        res.status(500).json({ message: '❌ Search failed', error: error.message });
+        console.error('Search failed:', error.message);
+        res.status(500).json({ message: '❌ Search failed' });
     }
 });
 
@@ -38,7 +41,8 @@ router.get('/genre/:genreName', async (req, res) => {
         const formatted = movies.map(m => tmdbService.formatMovie(m));
         res.json({ message: `🎬 ${genreName} movies!`, genre: genreName, count: formatted.length, movies: formatted });
     } catch (error) {
-        res.status(500).json({ message: '❌ Failed to fetch movies', error: error.message });
+        console.error('Failed to fetch movies:', error.message);
+        res.status(500).json({ message: '❌ Failed to fetch movies' });
     }
 });
 
@@ -94,7 +98,7 @@ router.get('/:id', async (req, res) => {
             const wpData = details['watch/providers'].results.US || details['watch/providers'].results.IN || null;
             if (wpData) {
                 watchProviders = {
-                    link: wpData.link || null,
+                    link: wpData.link && isSafeHref(wpData.link) ? wpData.link : null,
                     flatrate: wpData.flatrate || null,
                     rent: wpData.rent || null,
                     buy: wpData.buy || null
@@ -130,7 +134,8 @@ router.get('/:id', async (req, res) => {
 
         res.json({ success: true, movie });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to fetch movie details', error: error.message });
+        console.error('Failed to fetch movie details:', error.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch movie details' });
     }
 });
 

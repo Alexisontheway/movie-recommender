@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { securityHeaders, isAllowedOrigin } = require('./middleware/security');
 
 dotenv.config();
 
@@ -13,10 +14,18 @@ console.log('🔑 TMDB Key loaded:', process.env.TMDB_API_KEY ? 'YES ✅' : 'NO 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS — allow all origins in production (simpler, works everywhere)
+// Trust the first proxy hop (Render) so req.ip / rate limiting see real client IPs.
+app.set('trust proxy', 1);
+
+// Basic security headers on every response.
+app.use(securityHeaders());
+
+// CORS — allowlist known frontend origins (prod, *.vercel.app previews, localhost).
+// Anything else is refused; non-browser requests without an Origin header pass.
 app.use(cors({
-    origin: true,
-    credentials: true,
+    origin: function (origin, callback) {
+        callback(null, isAllowedOrigin(origin));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));

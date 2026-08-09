@@ -4,7 +4,11 @@ const tmdbService = require("../services/tmdbService");
 const scoringService = require("../services/scoringService");
 const userProfileService = require("../services/userProfileService");
 const mlService = require("../services/mlService");
+const { timingMiddleware } = require("../middleware/timing");
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:8000";
+
+// T0-1: time every recommendation request and log duration + rolling p50/p95.
+router.use(timingMiddleware);
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -234,7 +238,8 @@ router.post("/generate", async (req, res) => {
     });
     res.json({ success: true, count: formatted.length, hiddenGems: formatted.filter(m => m.isHiddenGem).length, userProfile, recommendations: formatted });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to generate recommendations", error: error.message });
+    console.error("Generate error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to generate recommendations" });
   }
 });
 
@@ -404,7 +409,7 @@ router.get("/ml/hybrid/:movieId", async (req, res) => {
     });
   } catch (error) {
     console.error("Hybrid v2 error:", error);
-    res.status(500).json({ success: false, message: "Failed to get recommendations", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to get recommendations" });
   }
 });
 
@@ -591,7 +596,7 @@ router.post("/ml/multi", async (req, res) => {
     });
   } catch (error) {
     console.error("Multi v2 error:", error);
-    res.status(500).json({ success: false, message: "Failed", error: error.message });
+    res.status(500).json({ success: false, message: "Failed" });
   }
 });
 

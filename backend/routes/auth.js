@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { generateToken, requireAuth } = require('../middleware/auth');
+const { rateLimit } = require('../middleware/security');
+
+// Brute-force / credential-stuffing protection on the auth endpoints.
+router.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 40 }));
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -68,8 +72,7 @@ router.post('/signup', async (req, res) => {
         console.error('Signup error:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Failed to create account',
-            error: error.message
+            message: 'Failed to create account'
         });
     }
 });
@@ -123,8 +126,7 @@ router.post('/login', async (req, res) => {
         console.error('Login error:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Login failed',
-            error: error.message
+            message: 'Login failed'
         });
     }
 });
